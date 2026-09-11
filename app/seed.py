@@ -4,7 +4,8 @@ from datetime import date
 from .db import Base, engine, SessionLocal
 from .models import (
     HomologationDecision, PaymentCycleConfig, PaymentPeriod,
-    Employee, BaseTariff, Holiday, HolidayRule, CalculationPolicy, Occurrence,
+    Company, Department, Employee, BaseTariff, Holiday, HolidayRule,
+    CalculationPolicy, Occurrence,
 )
 from .seed_data import PENDING_DECISIONS
 from .operational_seed_data import EMPLOYEE_SNAPSHOT, BASE_TARIFFS, HOLIDAY_SNAPSHOT, HISTORICAL_OCCURRENCES
@@ -16,6 +17,22 @@ from .holiday_2026_data import (
 
 
 QS_FIRST_HALF_END_DAY = 17
+
+QS_DEPARTMENTS = [
+    ("SISTEMAS", "Sistemas"),
+    ("AJUDA_CUSTOS", "Ajuda de Custos"),
+    ("RH", "RH"),
+    ("COMERCIAL", "Comercial"),
+]
+
+QS_COMPANIES = [
+    ("MAM", "MAM"),
+    ("KNE", "KNE"),
+    ("REC", "REC"),
+    ("RMV", "RMV"),
+    ("QS", "QS"),
+    ("DR", "DR"),
+]
 
 
 def ensure_periods(db, year: int, month: int, cutoff: int):
@@ -45,6 +62,21 @@ def ensure_periods(db, year: int, month: int, cutoff: int):
         if row.status != "closed" and (row.start_date != start or row.end_date != end):
             row.start_date = start
             row.end_date = end
+
+
+def _seed_corporate_structure(db):
+    """Cria somente os cadastros-base; empresas e setores continuam expansíveis via CRUD."""
+    for code, name in QS_DEPARTMENTS:
+        row = db.query(Department).filter(Department.code == code).first()
+        if not row:
+            db.add(Department(code=code, name=name, active=True))
+
+    for code, name in QS_COMPANIES:
+        row = db.query(Company).filter(Company.code == code).first()
+        if not row:
+            db.add(Company(code=code, name=name, active=True))
+
+    db.flush()
 
 
 def _seed_employees(db):
@@ -199,15 +231,47 @@ def _seed_occurrences(db):
     db.flush()
 
 
-
 def _ensure_sqlite_migrations():
     """Migra o banco persistente das versões anteriores sem apagar dados."""
     from sqlalchemy import text
+
+    def columns(conn, table_name):
+        return {r[1] for r in conn.execute(text(f"PRAGMA table_info({table_name})"))}
+
     with engine.begin() as conn:
-        cols = {r[1] for r in conn.execute(text("PRAGMA table_info(employees)"))}
-        if "in_scope" not in cols and cols:
-            conn.execute(text("ALTER TABLE employees ADD COLUMN in_scope BOOLEAN NOT NULL DEFAULT 1"))
-            conn.execute(text("UPDATE employees SET in_scope = 0 WHERE benefit_group = 'ADMIN_OUTROS'"))
+        employee_cols = columns(conn, "employees")
+        if employee_cols:
+            additions = {
+                "in_scope": "BOOLEAN NOT NULL DEFAULT 1",
+                "cpf": "VARCHAR(11)",
+                "company_id": "INTEGER REFERENCES companies(id)",
+                "operational_group": "VARCHAR(40) NOT NULL DEFAULT 'REGULAR'",
+                "employment_status": "VARCHAR(30) NOT NULL DEFAULT 'ATIVO'",
+                "exclusive_supplier": "BOOLEAN NOT NULL DEFAULT 0",
+                "supplier_name": "VARCHAR(180)",
+                "km_authorized": "BOOLEAN NOT NULL DEFAULT 0",
+                "km_authorized_from": "DATE",
+                "km_authorized_to": "DATE",
+                "km_authorization_reason": "TEXT",
+            }
+            for name, ddl in additions.items():
+                if name not in employee_cols:
+                    conn.execute(text(f"ALTER TABLE employees ADD COLUMN {name} {ddl}"))
+
+            # Mantém a regra legada de escopo ao migrar bancos anteriores.
+            conn.execute(text(
+                "UPDATE employees SET in_scope = 0 "
+                "WHERE benefit_group = 'ADMIN_OUTROS' AND (in_scope IS NULL OR in_scope = 1)"
+            ))
+
+        user_cols = columns(conn, "user_accounts")
+        if user_cols:
+            if "department_id" not in user_cols:
+                conn.execute(text(
+                    "ALTER TABLE user_accounts ADD COLUMN department_id INTEGER REFERENCES departments(id)"
+                ))
+            if "position" not in user_cols:
+                conn.execute(text("ALTER TABLE user_accounts ADD COLUMN position VARCHAR(40)"))
 
 
 def seed():
@@ -216,6 +280,8 @@ def seed():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
+        _seed_corporate_structure(db)
+
         if db.query(HomologationDecision).count() == 0:
             for row in PENDING_DECISIONS:
                 db.add(HomologationDecision(**row, status="pending"))
