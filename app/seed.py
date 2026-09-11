@@ -15,7 +15,19 @@ from .holiday_2026_data import (
 )
 
 
+QS_FIRST_HALF_END_DAY = 17
+
+
 def ensure_periods(db, year: int, month: int, cutoff: int):
+    """Garante as duas quinzenas do mês sem alterar períodos históricos fechados.
+
+    Regra oficial QS V0.9.3:
+    - 1ª quinzena: 01 até 17, inclusive;
+    - 2ª quinzena: 18 até o último dia do mês.
+
+    Períodos existentes que ainda estejam abertos podem ter suas datas corrigidas para
+    refletir a regra vigente. Uma quinzena fechada nunca é reescrita por esta rotina.
+    """
     last_day = calendar.monthrange(year, month)[1]
     cutoff = max(1, min(cutoff, last_day - 1))
     specs = [
@@ -26,6 +38,13 @@ def ensure_periods(db, year: int, month: int, cutoff: int):
         row = db.query(PaymentPeriod).filter_by(year=year, month=month, half=half).first()
         if not row:
             db.add(PaymentPeriod(year=year, month=month, half=half, start_date=start, end_date=end))
+            continue
+
+        # Histórico fechado é imutável. Somente períodos ainda abertos acompanham
+        # uma correção da regra de calendário.
+        if row.status != "closed" and (row.start_date != start or row.end_date != end):
+            row.start_date = start
+            row.end_date = end
 
 
 def _seed_employees(db):
@@ -203,8 +222,13 @@ def seed():
 
         config = db.get(PaymentCycleConfig, 1)
         if not config:
-            config = PaymentCycleConfig(id=1, first_half_end_day=15)
+            config = PaymentCycleConfig(id=1, first_half_end_day=QS_FIRST_HALF_END_DAY)
             db.add(config)
+            db.flush()
+        elif config.first_half_end_day != QS_FIRST_HALF_END_DAY:
+            # Regra oficial confirmada para a V0.9.3. A alteração da configuração
+            # não reescreve períodos fechados; ensure_periods respeita esse histórico.
+            config.first_half_end_day = QS_FIRST_HALF_END_DAY
             db.flush()
 
         _seed_employees(db)
