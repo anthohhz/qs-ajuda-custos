@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.import-card { background:#fff; border-radius:12px; padding:32px; max-width:640px; margin:40px auto; box-shadow:0 2px 12px rgba(0,57,184,.08); }
+.import-card h2 { color:#0057b8; margin-bottom:6px; font-size:1.4rem; }
+.import-card p.sub { color:#666; margin-bottom:24px; font-size:.95rem; }
+.kpi-mini { background:#f0f5ff; border-radius:8px; padding:12px 20px; display:inline-block; margin-bottom:24px; }
+.kpi-mini span { font-size:1.6rem; font-weight:700; color:#0057b8; }
+.kpi-mini small { display:block; color:#555; font-size:.8rem; }
+.upload-area { border:2px dashed #0057b8; border-radius:10px; padding:32px; text-align:center; cursor:pointer; background:#f7faff; transition:background .2s; }
+.upload-area:hover { background:#e8f0fe; }
+.upload-area input[type=file] { display:none; }
+.upload-area .icon { font-size:2.5rem; display:block; margin-bottom:8px; }
+.fname { color:#0057b8; font-weight:600; margin-top:8px; font-size:.95rem; }
+.btn-import { margin-top:20px; width:100%; padding:13px; background:#0057b8; color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:700; cursor:pointer; transition:background .2s; }
+.btn-import:hover { background:#0040a0; }
+.result-box { border-radius:10px; padding:18px 24px; margin-top:24px; }
+.result-ok  { background:#e6f9ee; border:1px solid #22c55e; }
+.result-err { background:#fff0f0; border:1px solid #ef4444; }
+.r-title { font-weight:700; margin-bottom:6px; font-size:1rem; }
+.result-ok .r-title { color:#16a34a; }
+.result-err .r-title { color:#dc2626; }
+.r-stats { display:flex; gap:24px; margin-top:10px; flex-wrap:wrap; }
+.stat-pill { background:#fff; border-radius:6px; padding:6px 14px; font-size:.85rem; }
+.stat-pill strong { display:block; font-size:1.1rem; color:#0057b8; }
+.warn-box { background:#fffbeb; border:1px solid #fbbf24; border-radius:8px; padding:14px 18px; margin-top:16px; font-size:.88rem; color:#92400e; }
+</style>
+<div class="import-card">
+  <h2>&#128229; Importar Roteiros &mdash; Puzzle</h2>
+  <p class="sub">Carregue a planilha gerada pelo Puzzle (<em>PDVs x Industria.xlsx</em>) para atualizar os roteiros no sistema. Os dados atuais serao <strong>substituidos</strong> pelos da nova planilha.</p>
+  <div class="kpi-mini">
+    <span>{{ total_atual }}</span>
+    <small>Roteiros atualmente no sistema</small>
+  </div>
+  <div class="warn-box">
+    &#9888; Esta operacao <strong>apaga e recarrega</strong> toda a tabela de roteiros. Use sempre a planilha mais recente do Puzzle.
+  </div>
+  <form method="post" enctype="multipart/form-data" action="/admin/importar-roteiros" style="margin-top:24px;">
+    <div class="upload-area" id="upload-area">
+      <span class="icon">&#128194;</span>
+      <label for="arquivo-input">
+        <strong>Clique para selecionar</strong> ou arraste o arquivo <code>.xlsx</code> aqui
+      </label>
+      <input type="file" name="arquivo" id="arquivo-input" accept=".xlsx" required onchange="showName(this)">
+      <div class="fname" id="fname-display" style="display:none"></div>
+    </div>
+    <button type="submit" class="btn-import">&#128640; Importar Roteiros</button>
+  </form>
+  {% if resultado %}
+  <div class="result-box {{ 'result-ok' if resultado.ok else 'result-err' }}">
+    <div class="r-title">{{ '&#9989; Sucesso' if resultado.ok else '&#10060; Erro' }}</div>
+    <div>{{ resultado.msg }}</div>
+    {% if resultado.ok %}
+    <div class="r-stats">
+      <div class="stat-pill"><strong>{{ resultado.inseridos }}</strong>Roteiros carregados</div>
+      <div class="stat-pill"><strong>{{ resultado.vinculados }}</strong>Vinculados a colaboradores</div>
+      {% if resultado.erros > 0 %}
+      <div class="stat-pill"><strong style="color:#ef4444">{{ resultado.erros }}</strong>Linhas com erro</div>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+<script>
+function showName(input) {
+  var d = document.getElementById('fname-display');
+  if (input.files.length > 0) {
+    d.textContent = '\ud83d\udcc4 ' + input.files[0].name;
+    d.style.display = 'block';
+    document.getElementById('upload-area').style.background = '#e8f0fe';
+  }
+}
+var area = document.getElementById('upload-area');
+area.addEventListener('dragover', function(e) { e.preventDefault(); area.style.background='#dce8ff'; });
+area.addEventListener('dragleave', function() { area.style.background='#f7faff'; });
+area.addEventListener('drop', function(e) {
+  e.preventDefault();
+  var inp = document.getElementById('arquivo-input');
+  inp.files = e.dataTransfer.files;
+  showName(inp);
+});
+</script>
+{% endblock %}

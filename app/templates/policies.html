@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><p class="eyebrow">MOTOR DE CÁLCULO</p><h1>Políticas de cálculo</h1><p class="muted">Aqui você confirma quais dias entram na quinzena e quantos VT são previstos por dia para cada carga.</p></div>
+  <span class="pill warn">CONFIRMAR ANTES DO USO FINANCEIRO</span>
+</div>
+{% if request.query_params.get('saved') %}<div class="notice good-notice">Política salva.</div>{% endif %}
+<div class="card info-card"><strong>Importante</strong><p>Os valores abaixo começaram como hipóteses de simulação. Homologar significa dizer ao QS que essa política pode ser usada financeiramente. Se a regra real for diferente, altere antes de homologar.</p></div>
+
+<div class="policy-stack section">
+{% for p in rows %}
+<form class="card policy-card" method="post" action="/politicas/{{ p.id }}">
+  <div class="policy-head"><div><span class="mini-label">{{ p.workload_key }}</span><h2>{{ p.label }}</h2><p class="muted">{{ workload_counts.get(p.workload_key,0) }} colaboradores atuais neste recorte.</p></div>{% if p.approved %}<span class="pill good">HOMOLOGADA</span>{% else %}<span class="pill warn">SIMULAÇÃO</span>{% endif %}</div>
+  <div class="weekday-box"><span class="field-title">Dias considerados como trabalháveis</span><div class="weekday-row">{% set selected=p.weekdays.split(',') %}{% for value,label in weekdays %}<label class="day-check"><input type="checkbox" name="weekdays" value="{{ value }}" {% if value|string in selected %}checked{% endif %}><span>{{ label }}</span></label>{% endfor %}</div></div>
+  <div class="form-grid"><label>Quantidade padrão de VT por dia<input name="vt_per_day" value="{{ p.vt_per_day|brnum }}" inputmode="decimal"></label><label>Observação<textarea name="notes" rows="3">{{ p.notes or '' }}</textarea></label></div>
+  <div class="form-actions"><button class="btn secondary" type="submit" name="action" value="draft">Salvar como simulação</button><button class="btn approve" type="submit" name="action" value="approve">Homologar política</button></div>
+</form>
+{% endfor %}
+</div>
+{% endblock %}

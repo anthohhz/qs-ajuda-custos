@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head"><div><p class="eyebrow">PAGAMENTOS</p><h1>Quinzenas</h1><p class="muted">A quinzena é a unidade de cálculo e pagamento. Reembolsos, créditos e descontos entram no Total Conhecido da quinzena em que serão pagos.</p></div><a class="btn secondary" href="/regras-operacionais">Revisar regras</a></div>
+<div class="card section"><form class="competence-form" method="get" action="/quinzenas"><label>Competência<input type="month" name="competencia" value="{{ competencia }}"></label><button class="btn" type="submit">Abrir competência</button></form></div>
+<div class="page-section-title"><div><h2>{{ month_label }}</h2><p class="muted">Corte atual: 1ª quinzena termina no dia {{ config.first_half_end_day }}.</p></div></div>
+<div class="period-grid large">
+{% for p,s in cards %}
+<div class="card period-big">
+  <div class="period-number">{{ p.half }}ª</div><span class="mini-label">QUINZENA</span><h2>{{ p.start_date|brdate }} a {{ p.end_date|brdate }}</h2>
+  <div class="period-status"><span>Status</span><strong>{{ status_labels.get(p.status,p.status) }}</strong></div>
+  {% if s.rows or s.adjustment_count or s.pending_adjustments %}
+    <div class="period-result-grid"><div><span>Calculados</span><strong>{{ s.calculated }}</strong></div><div><span>Simulação</span><strong>{{ s.simulation }}</strong></div><div><span>Revisar</span><strong>{{ s.review }}</strong></div><div><span>Ajustes pend.</span><strong>{{ s.pending_adjustments }}</strong></div></div>
+    <div class="total-breakdown-mini"><span>Ajuda {{ s.base_total|brl }}</span><span>Reemb. +{{ s.reimbursements|brl }}</span><span>Descontos -{{ s.discounts|brl }}</span></div>
+    <div class="period-total"><span>TOTAL CONHECIDO</span><strong>{{ s.total|brl }}</strong></div>
+    <div class="button-row"><a class="btn" href="/quinzenas/{{ p.id }}">Resultados</a><a class="btn secondary" href="/quinzenas/{{ p.id }}/ajustes">Reembolsos e ajustes</a>{% if request.state.user.role in ['ADMIN','BENEFICIOS'] %}<form method="post" action="/quinzenas/{{ p.id }}/processar"><button class="btn secondary" type="submit">Reprocessar</button></form>{% endif %}</div>
+  {% else %}
+    <div class="period-empty"><strong>Pronta para simular</strong><p>O QS calculará o que já consegue e separará automaticamente o que precisa de decisão.</p></div>
+    <div class="button-row">{% if request.state.user.role in ['ADMIN','BENEFICIOS'] %}<form method="post" action="/quinzenas/{{ p.id }}/processar"><button class="btn" type="submit">Simular quinzena</button></form>{% endif %}<a class="btn secondary" href="/quinzenas/{{ p.id }}/ajustes">Reembolsos e ajustes</a></div>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+<div class="card section info-card"><strong>Regra operacional</strong><p>Passagens adicionais alteram a quantidade de VT da própria quinzena. Reembolsos corrigem períodos anteriores e só entram no Total Conhecido quando aprovados. Trechos entre lojas próximas podem retirar VT do cálculo via ocorrência enquanto a integração automática de distância com o Puzzle não estiver ativa.</p></div>
+{% endblock %}

@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Configurações e credenciais
+.env
+.env.*
+!.env.example
+
+# Bancos locais
+*.db
+*.sqlite
+*.sqlite3
+
+# Dados operacionais
+backups/
+uploads/
+atestados/
+data/
+dados/
+exports/
+
+# Planilhas e arquivos de dados
+*.xlsx
+*.xls
+*.csv
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# Windows / sistema
+Thumbs.db
+.DS_Store
+
+# Dados internos incorporados ao protótipo
+app/operational_seed_data.py
+app/seed_data.py

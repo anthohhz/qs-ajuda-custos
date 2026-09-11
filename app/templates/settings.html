@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Configurações e dados</h1><p class="muted">O banco permanece fora da pasta da versão. Atualizar o programa não deve apagar homologações, ocorrências nem cálculos.</p></div><a class="btn secondary" href="/dados/backup">Baixar backup do banco</a></div>
+{% if request.query_params.get('saved') %}<div class="notice good-notice">Configuração quinzenal salva.</div>{% endif %}
+<div class="two detail-grid">
+  <div class="card"><h2>Ciclo quinzenal</h2><p class="muted">Defina o último dia da 1ª quinzena. Períodos ainda não processados acompanham a configuração.</p><form class="settings-form" method="post" action="/configuracoes/ciclo"><label>Último dia da 1ª quinzena<input type="number" min="5" max="25" name="first_half_end_day" value="{{ config.first_half_end_day }}"></label><button class="btn" type="submit">Salvar corte</button></form></div>
+  <div class="card"><h2>Base local</h2><div class="metric-list"><div><span>Colaboradores</span><strong>{{ employee_count }}</strong></div><div><span>Tarifas normalizadas</span><strong>{{ tariff_count }}</strong></div><div><span>Feriados históricos</span><strong>{{ holiday_count }}</strong></div><div><span>Ocorrências</span><strong>{{ occurrence_count }}</strong></div></div></div>
+</div>
+<div class="card section"><h2>Banco persistente</h2><p class="muted">Este é o arquivo que contém as decisões feitas no sistema.</p><div class="db-path">{{ db_path }}</div><p class="subtle">Pasta de dados: {{ data_dir }}</p>{% if migration_source %}<div class="suggestion"><strong>Migração detectada</strong><p>Na primeira abertura, o QS trouxe dados de: {{ migration_source }}</p></div>{% endif %}</div>
+<div class="card section info-card"><strong>Sobre os snapshots embarcados</strong><p>Para o MVP V0.9.2, colaboradores, tarifas e feriados já foram incorporados ao sistema a partir dos arquivos usados durante o desenvolvimento. O usuário não precisa selecionar esses Excel. A integração direta com o Puzzle substituirá esse snapshot em uma versão futura.</p></div>
+{% endblock %}

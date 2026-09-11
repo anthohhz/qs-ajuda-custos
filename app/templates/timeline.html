@@ -1,0 +1,305 @@
+{% extends "base.html" %}{% block content %}
+<style>
+  .tl-head { display:flex; justify-content:space-between; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:20px; }
+  .tl-search { display:flex; gap:8px; align-items:center; flex:1; max-width:780px; }
+  .tl-search select, .tl-search input[type=text] {
+    padding:10px 12px; border:1px solid #d0dbeb; border-radius:10px; font-size:.9rem; outline:none; background:#fafbfd;
+    min-width:0;
+  }
+  .tl-search select:focus, .tl-search input:focus { border-color:#0057b8; background:#fff; }
+  .tl-search input[type=text] { flex:1; }
+
+  /* KPIs do promotor */
+  .tl-promoter-card {
+    background: linear-gradient(135deg,#0057b8 0%, #0072f0 100%);
+    color:#fff; border-radius:18px; padding:22px 26px; display:flex; justify-content:space-between;
+    flex-wrap:wrap; gap:16px; margin-bottom:22px; box-shadow:0 10px 30px rgba(0,60,120,0.18);
+  }
+  .tl-prom-name { font-size:1.55rem; font-weight:800; margin:0; letter-spacing:.2px; }
+  .tl-prom-sub { opacity:.93; margin-top:4px; font-size:.92rem; display:flex; gap:14px; flex-wrap:wrap; }
+  .tl-prom-chip { background:rgba(255,255,255,0.18); padding:3px 9px; border-radius:12px; font-size:.78rem; border:1px solid rgba(255,255,255,0.22); }
+  .tl-kpis { display:flex; gap:18px; flex-wrap:wrap; align-items:stretch; }
+  .tl-kpi {
+    background:rgba(255,255,255,0.15); backdrop-filter:blur(4px);
+    padding:12px 16px; border-radius:12px; min-width:120px; border:1px solid rgba(255,255,255,0.2);
+  }
+  .tl-kpi span { font-size:.74rem; opacity:.9; display:block; text-transform:uppercase; letter-spacing:.4px; }
+  .tl-kpi strong { font-size:1.45rem; font-weight:800; display:block; margin-top:2px; }
+
+  /* GANTT / Calendário */
+  .gantt-wrap { overflow-x:auto; border-radius:14px; border:1px solid #e6ebf2; background:#fff; margin-bottom:26px; }
+  .gantt-table { width:100%; border-collapse:separate; border-spacing:0; min-width:800px; }
+  .gantt-th-week { text-align:center; padding:10px 6px; background:linear-gradient(180deg,#f0f5ff,#e2ecff); color:#0057b8;
+    font-weight:700; font-size:.85rem; border-bottom:1px solid #d6e0f2; position:sticky; top:0; z-index:3; }
+  .gantt-th-day { padding:7px 4px; text-align:center; background:#f7f9fc; border-bottom:1px solid #e6ebf2;
+    font-size:.76rem; color:#445; font-weight:600; min-width:54px; }
+  .gantt-th-day.hoje { background:#fff6c8; color:#8a5d00; }
+  .gantt-th-day.passado { color:#8fa1bd; font-weight:400; }
+  .gantt-td-pdv { padding:9px 12px; border-right:1px solid #eef1f6; border-bottom:1px solid #f0f3f7;
+    white-space:nowrap; max-width:300px; overflow:hidden; text-overflow:ellipsis; font-size:.82rem; color:#0d1b2a;
+    background:#fbfcfd; position:sticky; left:0; z-index:2; min-width:200px; }
+  .gantt-td-pdv strong { font-size:.78rem; color:#0057b8; display:block; margin-bottom:2px; }
+  .gantt-td-pdv .tl-cidade { font-size:.72rem; color:#667a99; }
+  .gantt-cell {
+    padding:0; border-right:1px solid #eef1f6; border-bottom:1px solid #f0f3f7;
+    height:48px; position:relative; text-align:center; background:#fff;
+  }
+  .gantt-cell.passado { background:#fafcff; }
+  .gantt-cell.hoje { background:#fffbe5; }
+  .gantt-badge {
+    display:inline-block; margin:9px 4px; padding:5px 7px; border-radius:7px;
+    font-size:.68rem; font-weight:700; color:#003f86; background:#d8e9ff;
+    border:1px solid #b4cdf2; max-width:calc(100% - 8px); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; cursor:help;
+  }
+  .gantt-badge.ind-multi { background:#ffd9e0; color:#a61e3b; border-color:#f1b4be; }
+  .gantt-badge.ind-1 { background:#dcfce7; color:#166534; border-color:#86efac; }
+
+  /* Lista simples por dia */
+  .dias-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:14px; margin-top:10px; }
+  .dia-card { background:#fff; border-radius:12px; border:1px solid #e6ebf2; overflow:hidden; }
+  .dia-head { padding:10px 14px; background:#f0f5ff; color:#0057b8; font-weight:700; font-size:.88rem;
+    display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #d6e0f2; }
+  .dia-count { background:#0057b8; color:#fff; padding:2px 8px; border-radius:10px; font-size:.72rem; }
+  .dia-list { padding:4px 0; max-height:260px; overflow-y:auto; }
+  .dia-item { padding:7px 14px; border-top:1px solid #f3f5f8; font-size:.82rem; }
+  .dia-item:first-child { border-top:none; }
+  .dia-item .pdv-nome { color:#0d1b2a; font-weight:600; }
+  .dia-item .pdv-loc { color:#667a99; font-size:.74rem; margin-top:1px; }
+  .dia-item .pdv-inds { margin-top:3px; display:flex; flex-wrap:wrap; gap:3px; }
+  .dia-item .pdv-inds span { background:#fff6c8; color:#7a5d00; padding:1px 6px;
+    border-radius:6px; font-size:.68rem; font-weight:600; }
+
+  .empty-state { padding:50px 20px; text-align:center; color:#8fa1bd; }
+  .empty-state svg { opacity:.5; margin-bottom:12px; }
+  .empty-state strong { display:block; color:#445; font-size:1rem; margin-bottom:6px; }
+  .empty-state p { margin:0; font-size:.88rem; }
+
+  .mini-link { color:#fff; font-size:.78rem; text-decoration:underline; opacity:.92; cursor:pointer; margin-left:8px; }
+</style>
+
+<div class="page-head">
+  <div>
+    <p class="eyebrow">ROTEIRO OPERACIONAL</p>
+    <h1>Timeline de Roteiro do Promotor</h1>
+    <p class="muted">Visualize os PDVs que cada promotor atende por dia da semana, projetados nas próximas semanas.</p>
+  </div>
+  <span class="pill info">Fonte: Importação Puzzle</span>
+</div>
+
+<!-- Barra de busca -->
+<div class="tl-head">
+  <form class="tl-search" method="get" action="/timeline-roteiro">
+    <select name="id" onchange="if(this.value){this.form.submit();}else{document.getElementById('qInp').focus();}">
+      <option value="">Selecione um promotor...</option>
+      {% for nome, qtd in opcoes_promotores %}
+      <option value="" disabled style="color:#666;">─── {{ qtd }} rotas</option>
+      {% endfor %}
+      {% for nome, qtd in opcoes_promotores %}
+      <option value="{{ loop.index0 }}__{{ nome }}">{{ nome }} ({{ qtd }})</option>
+      {% endfor %}
+    </select>
+    <input id="qInp" type="text" name="q" value="{{ q }}" placeholder="Ou digite o nome do promotor e pressione Enter">
+    <input type="hidden" name="semanas" value="{{ semanas }}">
+    <button type="submit" class="btn primary">Buscar</button>
+  </form>
+  <div>
+    <select onchange="window.location=this.value" style="padding:8px 10px;border:1px solid #d0dbeb;border-radius:9px;font-size:.85rem;background:#fafbfd;">
+      {% set ns = namespace(opts=[2,4,6,8]) %}
+      {% for opt in ns.opts %}
+        <option value="/timeline-roteiro?q={{ q }}&id={% if promotor %}{{ promotor.id }}{% endif %}&semanas={{ opt }}" {% if semanas == opt %}selected{% endif %}>{{ opt }} semanas</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- Script para tratar o select com nome -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const sel = document.querySelector('.tl-search select[name="id"]');
+  sel.addEventListener('change', function() {
+    const v = this.value;
+    if (!v) return;
+    const parts = v.split('__');
+    if (parts.length >= 2) {
+      // procurar por nome via GET q
+      const nome = parts.slice(1).join('__');
+      window.location = '/timeline-roteiro?q=' + encodeURIComponent(nome) + '&semanas={{ semanas }}';
+    }
+  });
+});
+</script>
+
+{% if not promotor %}
+<div class="card">
+  <div class="empty-state">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+      <line x1="16" y1="2" x2="16" y2="6"></line>
+      <line x1="8" y1="2" x2="8" y2="6"></line>
+      <line x1="3" y1="10" x2="21" y2="10"></line>
+      <path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"></path>
+    </svg>
+    <strong>Nenhum promotor selecionado</strong>
+    <p>Selecione um promotor na lista acima ou digite o nome para visualizar sua timeline de roteiro semanal.</p>
+  </div>
+</div>
+
+{% else %}
+
+<!-- Card do promotor -->
+<div class="tl-promoter-card">
+  <div>
+    <h2 class="tl-prom-name">{{ promotor.name }}</h2>
+    <div class="tl-prom-sub">
+      <span class="tl-prom-chip">📌 {{ promotor.work_city or '—' }} / {{ promotor.work_state or '—' }}</span>
+      <span class="tl-prom-chip">👤 Supervisor: {{ supervisor_short or 'Não definido' }}</span>
+      <span class="tl-prom-chip">🚍 Modal: {{ (promotor.mobility_mode or '—')|replace('ONIBUS','Ônibus')|replace('CARRO','Carro')|replace('MOTO','Moto') }}</span>
+      <span class="tl-prom-chip">📋 Perfil: {{ promotor.profile or '—' }}</span>
+      {% if promotor.id %}
+        <a class="mini-link" href="/colaboradores/{{ promotor.id }}">Abrir perfil completo →</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="tl-kpis">
+    <div class="tl-kpi"><span>PDV's totais</span><strong>{{ total_pdvs }}</strong></div>
+    <div class="tl-kpi"><span>Visitas/semana</span><strong>{{ total_visitas_semana }}</strong></div>
+    <div class="tl-kpi"><span>Média / dia</span><strong>{{ media_visitas_por_dia }}</strong></div>
+  </div>
+</div>
+
+<!-- GANTT / CALENDÁRIO -->
+<div class="card">
+  <div class="section-title">
+    <div>
+      <span class="mini-label">VISÃO CALENDÁRIO</span>
+      <h2>Roteiro em {{ semanas }} semanas</h2>
+      <p class="muted">Cada linha é um PDV. Células em amarelo = hoje. Passe o mouse sobre as bolinhas para ver indústrias/marcas atendidas naquele dia.</p>
+    </div>
+  </div>
+
+  <div class="gantt-wrap" style="margin-top:16px;">
+    <table class="gantt-table">
+      <thead>
+        <tr>
+          <th rowspan="2" style="position:sticky; left:0; z-index:4; background:#f7f9fc; border-right:1px solid #e6ebf2; border-bottom:1px solid #e6ebf2; padding:10px 14px; text-align:left; font-size:.78rem; color:#667a99; min-width:200px;">
+            PDV / Local
+          </th>
+          {% for sem in semanas_visiveis %}
+          <th colspan="6" class="gantt-th-week {% if sem.idx == 0 %}style{background:#ffd500;}{% endif %}">
+            {{ sem.label }}
+            {% if sem.idx == 0 %} <span style="background:#ffd500; color:#003f86; padding:2px 6px; border-radius:8px; font-size:.7rem; margin-left:4px;">ATUAL</span>{% endif %}
+          </th>
+          {% endfor %}
+        </tr>
+        <tr>
+          {% for sem in semanas_visiveis %}
+            {% for d in sem.dias %}
+              <th class="gantt-th-day {% if d.eh_hoje %}hoje{% elif d.passado %}passado{% endif %}">
+                <div style="font-weight:600;">{{ d.label[:3] }}</div>
+                <div style="font-size:.7rem; margin-top:1px;">{{ d.dia_num }}</div>
+              </th>
+            {% endfor %}
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% set pdvs_unicos = [] %}
+        {% for dia in dias_labels %}
+          {% for r in rotas_por_dia.get(dia, []) %}
+            {% if r.pdv not in pdvs_unicos %}{% set _ = pdvs_unicos.append(r.pdv) %}{% endif %}
+          {% endfor %}
+        {% endfor %}
+
+        {% if pdvs_unicos|length == 0 %}
+        <tr><td colspan="{{ 1 + (semanas_visiveis|length * 6) }}" class="empty-state" style="border:none;">Nenhuma rota cadastrada para este promotor.</td></tr>
+        {% endif %}
+
+        {% for pdv_nome in pdvs_unicos %}
+          {% set cidade = '' %}
+          {% set uf = '' %}
+          {% set endereco = '' %}
+          {% set dias_pdv = {} %}
+          {% for dia in dias_labels %}
+            {% for r in rotas_por_dia.get(dia, []) %}
+              {% if r.pdv == pdv_nome %}
+                {% set cidade = r.cidade %}
+                {% set uf = r.uf %}
+                {% set endereco = r.endereco %}
+                {% set _ = dias_pdv.update({dia: r.industrias}) %}
+              {% endif %}
+            {% endfor %}
+          {% endfor %}
+
+          <tr>
+            <td class="gantt-td-pdv" title="{{ pdv_nome }} | {{ endereco }}">
+              <strong>#{{ loop.index }}</strong>
+              {{ pdv_nome }}
+              <div class="tl-cidade">
+                {% if cidade %}{{ cidade }}/{{ uf }}{% else %}{{ uf or '—' }}{% endif %}
+                {% if endereco %} · {{ endereco[:45] }}{% endif %}
+              </div>
+            </td>
+            {% for sem in semanas_visiveis %}
+              {% for d in sem.dias %}
+                {% set inds = dias_pdv.get(d.label, []) %}
+                <td class="gantt-cell {% if d.eh_hoje %}hoje{% elif d.passado %}passado{% endif %}">
+                  {% if inds|length > 0 %}
+                    <div class="gantt-badge {% if inds|length == 1 %}ind-1{% elif inds|length > 1 %}ind-multi{% endif %}"
+                      title="{{ inds|join(' + ') }}">
+                      {{ inds[0][:18] }}{% if inds|length > 1 %} +{{ inds|length - 1 }}{% endif %}
+                    </div>
+                  {% endif %}
+                </td>
+              {% endfor %}
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Lista por dia da semana -->
+<div class="card" style="margin-top:22px;">
+  <div class="section-title">
+    <div>
+      <span class="mini-label">VISÃO DETALHADA</span>
+      <h2>Roteiro por Dia da Semana</h2>
+      <p class="muted">Lista de PDVs organizados por dia, com indústrias/marcas atendidas.</p>
+    </div>
+  </div>
+  <div class="dias-grid" style="margin-top:12px;">
+    {% for dia in dias_labels %}
+    {% set rotas = rotas_por_dia.get(dia, []) %}
+    <div class="dia-card">
+      <div class="dia-head">
+        {{ dia }}
+        <span class="dia-count">{{ rotas|length }} PDV's</span>
+      </div>
+      <div class="dia-list">
+        {% if rotas|length == 0 %}
+        <div style="padding:18px; text-align:center; color:#b5c0d3; font-size:.8rem;">Sem atendimento</div>
+        {% endif %}
+        {% for r in rotas %}
+        <div class="dia-item">
+          <div class="pdv-nome">{{ r.pdv }}</div>
+          <div class="pdv-loc">
+            {% if r.cidade %}{{ r.cidade }}/{{ r.uf }}{% else %}{{ r.uf or '—' }}{% endif %}
+            · freq {{ r.frequencia }}
+          </div>
+          {% if r.industrias %}
+          <div class="pdv-inds">
+            {% for ind in r.industrias %}<span>{{ ind }}</span>{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <a class="back" href="/homologacoes?status=pending">← Voltar para pendências</a>
+    <p class="eyebrow">DECISÃO {{ item.id }} DE 25</p>
+    <h1>{{ item.location }}</h1>
+    <p class="muted">{{ item.decision_needed }}</p>
+  </div>
+  {% if item.status == 'approved' %}
+    <span class="pill good">HOMOLOGADA</span>
+  {% elif item.status == 'draft' %}
+    <span class="pill draft">RASCUNHO</span>
+  {% else %}
+    <span class="pill warn">AGUARDANDO DECISÃO</span>
+  {% endif %}
+</div>
+
+<div class="two detail-grid">
+  <div class="left-stack">
+    <div class="card">
+      <h2>O que a planilha dizia</h2>
+      <div class="original-text">{{ item.original_text }}</div>
+      <div class="info-list">
+        <div><span>Origem</span><strong>{{ item.source_sheet }}</strong></div>
+        <div><span>Linha principal</span><strong>{{ item.source_row }}</strong></div>
+        <div><span>Tipo</span><strong>{{ item.source_table }}</strong></div>
+        <div><span>Prioridade</span><strong>{{ item.priority }}</strong></div>
+      </div>
+    </div>
+
+    {% if guidance %}
+    <div class="card">
+      <div class="card-title-row">
+        <div>
+          <p class="eyebrow">CONTEXTO AUTOMÁTICO</p>
+          <h2>O QS encontrou mais contexto</h2>
+        </div>
+        <span class="confidence {{ guidance.confidence|lower }}">Leitura {{ guidance.confidence }}</span>
+      </div>
+
+      <div class="source-stack">
+      {% for row in guidance.context_rows %}
+        <div class="source-row">
+          <div class="source-meta"><strong>{{ row.label }}</strong><span>{{ row.sheet }} · linha {{ row.row }}</span></div>
+          <div class="source-text">{{ row.text }}</div>
+        </div>
+      {% endfor %}
+      </div>
+
+      <div class="qs-reading">
+        <strong>Leitura sugerida pelo QS</strong>
+        <p>{{ guidance.interpretation }}</p>
+      </div>
+
+      {% if guidance.open_questions %}
+      <div class="questions-box">
+        <strong>O que ainda precisa ser decidido</strong>
+        <ul>
+          {% for q in guidance.open_questions %}<li>{{ q }}</li>{% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <p class="source-warning">Os campos à direita são uma sugestão de migração baseada somente no que está registrado na planilha. Edite antes de homologar quando a informação não estiver confirmada.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card form-card">
+    <h2>Transformar em regra do QS</h2>
+    <p class="muted form-intro">A regra já vem pré-preenchida quando a planilha permite. Você altera apenas o que precisa de decisão humana.</p>
+
+    <form method="post" action="/homologacoes/{{ item.id }}/salvar" id="rule-form">
+      <div class="form-grid">
+        <label>Tipo da regra
+          <select name="rule_kind" required>
+            <option value="TARIFA" {% if form_rule_kind == 'TARIFA' %}selected{% endif %}>Tarifa</option>
+            <option value="TARIFA_POR_TRAJETO" {% if form_rule_kind == 'TARIFA_POR_TRAJETO' %}selected{% endif %}>Tarifa por trajeto/área</option>
+            <option value="TARIFA_POR_PAGAMENTO" {% if form_rule_kind == 'TARIFA_POR_PAGAMENTO' %}selected{% endif %}>Tarifa por pagamento/cartão</option>
+            <option value="INTEGRACAO" {% if form_rule_kind == 'INTEGRACAO' %}selected{% endif %}>Regra de integração</option>
+            <option value="EXCECAO_VT" {% if form_rule_kind == 'EXCECAO_VT' %}selected{% endif %}>Exceção de VT</option>
+            <option value="COMPOSICAO" {% if form_rule_kind == 'COMPOSICAO' %}selected{% endif %}>Composição de custos</option>
+          </select>
+        </label>
+        <label>Escopo geral
+          <input name="scope" placeholder="Ex.: todos de Alagoinha/BA" value="{{ form_scope }}">
+        </label>
+      </div>
+
+      <div class="rule-section-head">
+        <div><strong>Valores e condições</strong><span>Uma regra pode ter vários valores, trajetos ou exceções.</span></div>
+        <button class="btn secondary small" type="button" onclick="addOption()">+ Adicionar condição</button>
+      </div>
+
+      <div id="options-list">
+      {% for opt in form_options %}
+        <div class="option-card">
+          <div class="option-head"><strong>Condição <span class="option-number">{{ loop.index }}</span></strong><button type="button" class="remove-option" onclick="removeOption(this)" aria-label="Remover">×</button></div>
+          <div class="form-grid three">
+            <label>Nome/identificação
+              <input name="option_label" placeholder="Ex.: Tarifa padrão" value="{{ opt.label or '' }}">
+            </label>
+            <label>Valor (R$)
+              <input name="option_value" inputmode="decimal" placeholder="Ex.: 4,60" value="{{ opt.value or '' }}">
+            </label>
+            <label>Vigência a partir de
+              <input type="date" name="option_valid_from" value="{{ opt.valid_from or '' }}">
+            </label>
+          </div>
+          <div class="form-grid three">
+            <label>Modal / operador
+              <input name="option_modal" placeholder="Ônibus / moto táxi / Topic" value="{{ opt.modal or '' }}">
+            </label>
+            <label>Origem
+              <input name="option_origin" placeholder="Quando houver trajeto" value="{{ opt.origin or '' }}">
+            </label>
+            <label>Destino
+              <input name="option_destination" placeholder="Quando houver trajeto" value="{{ opt.destination or '' }}">
+            </label>
+          </div>
+          <label>Quando esta condição se aplica?
+            <input name="option_condition" placeholder="Ex.: dentro do município / colaborador específico / pagamento em dinheiro" value="{{ opt.condition or '' }}">
+          </label>
+        </div>
+      {% endfor %}
+      </div>
+
+      <label>Observação da homologação
+        <textarea name="notes" rows="4" placeholder="Registre o que foi confirmado e a fonte da decisão, quando necessário.">{{ form_notes }}</textarea>
+      </label>
+
+      <div class="decision-note">
+        <strong>Rascunho não ativa a regra.</strong> Use quando você ainda precisa confirmar uma informação. Só “Homologar” transforma a decisão em regra ativa do QS.
+      </div>
+
+      <div class="form-actions triple-actions">
+        <button class="btn secondary" name="action" value="draft">Salvar rascunho</button>
+        <button class="btn secondary approve" name="action" value="approve">Homologar</button>
+        <button class="btn" name="action" value="approve_next">Homologar e ir para próxima →</button>
+      </div>
+    </form>
+
+    {% if item.status == 'approved' %}
+    <form class="reopen" method="post" action="/homologacoes/{{ item.id }}/reabrir">
+      <button class="link-button" type="submit">Reabrir esta decisão para ajuste</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<template id="option-template">
+  <div class="option-card">
+    <div class="option-head"><strong>Condição <span class="option-number"></span></strong><button type="button" class="remove-option" onclick="removeOption(this)" aria-label="Remover">×</button></div>
+    <div class="form-grid three">
+      <label>Nome/identificação<input name="option_label" placeholder="Ex.: Tarifa padrão"></label>
+      <label>Valor (R$)<input name="option_value" inputmode="decimal" placeholder="Ex.: 4,60"></label>
+      <label>Vigência a partir de<input type="date" name="option_valid_from"></label>
+    </div>
+    <div class="form-grid three">
+      <label>Modal / operador<input name="option_modal" placeholder="Ônibus / moto táxi / Topic"></label>
+      <label>Origem<input name="option_origin" placeholder="Quando houver trajeto"></label>
+      <label>Destino<input name="option_destination" placeholder="Quando houver trajeto"></label>
+    </div>
+    <label>Quando esta condição se aplica?<input name="option_condition" placeholder="Ex.: dentro do município / colaborador específico"></label>
+  </div>
+</template>
+<script>
+function renumberOptions(){
+  document.querySelectorAll('#options-list .option-number').forEach((el,i)=>el.textContent=i+1);
+}
+function addOption(){
+  const tpl=document.getElementById('option-template');
+  document.getElementById('options-list').appendChild(tpl.content.cloneNode(true));
+  renumberOptions();
+}
+function removeOption(btn){
+  const cards=document.querySelectorAll('#options-list .option-card');
+  if(cards.length<=1) return;
+  btn.closest('.option-card').remove();
+  renumberOptions();
+}
+renumberOptions();
+</script>
+{% endblock %}

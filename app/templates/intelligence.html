@@ -1,0 +1,536 @@
+{% extends "base.html" %}{% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<div class="page-head">
+  <div>
+    <p class="eyebrow">DASHBOARD ESTRATÉGICO</p>
+    <h1>Inteligência & Estatísticas</h1>
+    <p class="muted">Visão analítica consolidada cruzando dados financeiros, promotores e distribuição de PDV'S.</p>
+  </div>
+  <span class="pill good">Atualizado em tempo real</span>
+</div>
+
+<!-- KPIs Executivos -->
+<div class="kpi-grid">
+  <div class="card kpi">
+    <span>Gasto na Última Quinzena</span>
+    <strong class="money-kpi">R$ {{ latest_period_total|brnum }}</strong>
+    <small>Média histórica: R$ {{ avg_per_period|brnum }} / quinzena</small>
+  </div>
+  <div class="card kpi">
+    <span>Custo Médio / Promotor</span>
+    <strong class="money-kpi">R$ {{ latest_period_avg|brnum }}</strong>
+    <small>Projeção mensal: ~R$ {{ (latest_period_avg * 2)|brnum }}</small>
+  </div>
+  <div class="card kpi">
+    <span>Total de PDV'S</span>
+    <strong>{{ total_pdvs }}</strong>
+    <small>Lojas mapeadas em todo o Brasil</small>
+  </div>
+  <div class="card kpi">
+    <span>Promotores em Campo</span>
+    <strong>{{ total_colab }}</strong>
+    <small>Em escopo de cálculo de VT</small>
+  </div>
+</div>
+
+<!-- Evolução Financeira -->
+<div class="section">
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">FINANCEIRO</span>
+        <h2>Evolução de Custo por Quinzena</h2>
+        <p class="muted">Histórico consolidado do valor total de ajuda de custos.</p>
+      </div>
+    </div>
+    <div style="height: 300px; position: relative; margin-top: 15px;">
+      <canvas id="chartPeriods"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Top por Regiões -->
+<div class="section">
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">GEOGRAFIA</span>
+        <h2>Top por Regiões</h2>
+        <p class="muted">Clique na barra do gráfico ou em um botão para ver os PDVs da região.</p>
+      </div>
+    </div>
+
+    <div style="height: 300px; position: relative; margin-top: 12px;">
+      <canvas id="chartRegionais"></canvas>
+    </div>
+
+    <div id="regioesBotoes" style="margin-top: 18px; display:flex; flex-wrap:wrap; gap:8px;"></div>
+
+    <div id="pdvsRegiaoBox" style="margin-top: 16px; border-top:1px solid #eef1f6; padding-top:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:10px;">
+        <div>
+          <span style="font-size:.82rem; color:#667a99; font-weight:500;">REGIÃO SELECIONADA</span>
+          <h3 id="regiaoSelecionadaTitulo" style="margin:2px 0 0 0; color:#0d1b2a; font-size:1.05rem;">Selecione uma região acima</h3>
+        </div>
+        <div style="position:relative; min-width:260px; max-width:360px; flex:1;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8fa1bd" stroke-width="2" style="position:absolute; top:50%; left:10px; transform:translateY(-50%);"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          <input id="buscaPdvNaRegiao" type="text" placeholder="Buscar PDV, código ou rede..." style="width:100%; padding:7px 10px 7px 32px; border:1px solid #d8e0ec; border-radius:8px; font-size:.82rem; outline:none; box-sizing:border-box; background:#fafbfd;">
+        </div>
+      </div>
+    </div>
+    <div id="pdvsContainer" style="max-height:340px; overflow-y:auto; border-radius:10px; border:1px solid #eef1f6;">
+      <table id="pdvsTabela" style="width:100%; font-size:.82rem; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#eef3fa; position:sticky; top:0; z-index:1;">
+            <th style="padding:9px 12px; text-align:left; color:#0d1b2a;">CÓDIGO</th>
+            <th style="padding:9px 12px; text-align:left; color:#0d1b2a;">NOME DO PDV</th>
+            <th style="padding:9px 12px; text-align:left; color:#0d1b2a;">REDE</th>
+            <th style="padding:9px 12px; text-align:left; color:#0d1b2a;">ENDEREÇO</th>
+          </tr>
+        </thead>
+        <tbody id="pdvsTabelaBody">
+          <tr><td colspan="4" style="padding:26px; text-align:center; color:#8fa1bd;">Selecione uma região</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Densidade Operacional -->
+<div class="card section">
+  <div class="section-title">
+    <div>
+      <span class="mini-label">ESTRATÉGIA</span>
+      <h2>Densidade Operacional: PDV'S vs Promotores por Estado</h2>
+      <p class="muted">Relação entre a quantidade de lojas e o número de promotores alocados em cada estado.</p>
+    </div>
+  </div>
+  <div class="table-card" style="margin-top: 16px; border-radius: 10px; border: 1px solid var(--line);">
+    <table>
+      <thead>
+        <tr>
+          <th>Estado (UF)</th>
+          <th>Qtd. de PDV'S</th>
+          <th>Promotores Ativos</th>
+          <th>Média PDV / Promotor</th>
+          <th>Gasto Quinzenal (VT)</th>
+          <th>Média VT / Promotor</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in state_metrics %}
+        <tr>
+          <td><strong><span class="tag blue">{{ s.uf }}</span></strong></td>
+          <td><strong>{{ s.pdvs }}</strong> lojas</td>
+          <td>{{ s.promoters }} promotores</td>
+          <td>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <strong>{{ s.ratio }}</strong>
+              <div style="background:#eef1f6; width:80px; height:6px; border-radius:4px; overflow:hidden;">
+                <div style="background:var(--qs-blue); height:100%; width:{{ (s.ratio / 8.0 * 100)|int }}%;"></div>
+              </div>
+            </div>
+          </td>
+          <td><strong>R$ {{ s.cost|brnum }}</strong></td>
+          <td>R$ {{ s.avg_cost_promoter|brnum }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const blue = '#0057b8';
+  const blueLight = '#3385e5';
+  const yellow = '#ffd500';
+
+  new Chart(document.getElementById('chartPeriods'), {
+    type: 'line',
+    data: {
+      labels: {{ period_labels|safe }},
+      datasets: [{
+        label: 'Gasto Total (R$)',
+        data: {{ period_totals|safe }},
+        borderColor: blue,
+        backgroundColor: 'rgba(0, 87, 184, 0.1)',
+        fill: true,
+        tension: 0.35,
+        borderWidth: 3,
+        pointBackgroundColor: yellow,
+        pointBorderColor: blue,
+        pointRadius: 6,
+        pointHoverRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) { return ' R$ ' + ctx.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2}); }
+          }
+        }
+      },
+      scales: {
+        y: {
+          ticks: { callback: function(v) { return 'R$ ' + (v/1000).toFixed(0) + 'k'; } },
+          grid: { color: '#edf0f4' }
+        },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  const regData = {{ reg_labels|safe }};
+  const regValues = {{ reg_values|safe }};
+  const regDetail = {{ reg_pdvs_detail|tojson }};
+  let currentRegiaoIdx = -1;
+
+  const chartRegionais = new Chart(document.getElementById('chartRegionais'), {
+    type: 'bar',
+    data: {
+      labels: regData,
+      datasets: [{
+        label: 'PDV\'S',
+        data: regValues,
+        backgroundColor: regData.map(() => blueLight),
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: regData.map(() => 'transparent')
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        y: { grid: { color: '#edf0f4' } },
+        x: { grid: { display: false } }
+      },
+      onClick: (evt, elements) => {
+        if (elements.length > 0) selecionarRegiao(elements[0].index);
+      }
+    }
+  });
+
+  const botoesBox = document.getElementById('regioesBotoes');
+  regData.forEach((nome, idx) => {
+    const total = regValues[idx];
+    const btn = document.createElement('button');
+    btn.dataset.idx = idx;
+    btn.textContent = nome + ' • ' + total;
+    btn.style.cssText = 'padding:6px 12px; border:1px solid #d0dbeb; background:#f7f9fc; border-radius:20px; font-size:.82rem; cursor:pointer; color:#2c3e5a; transition:.15s; font-weight:500; white-space:nowrap;';
+    btn.addEventListener('mouseenter', () => { if (currentRegiaoIdx !== idx){btn.style.background='#e8f0ff'; btn.style.borderColor='#b9ccea';} });
+    btn.addEventListener('mouseleave', () => { if (currentRegiaoIdx !== idx){btn.style.background='#f7f9fc'; btn.style.borderColor='#d0dbeb';} });
+    btn.addEventListener('click', () => selecionarRegiao(idx));
+    botoesBox.appendChild(btn);
+  });
+
+  function selecionarRegiao(idx) {
+    currentRegiaoIdx = idx;
+    document.querySelectorAll('#regioesBotoes button').forEach((b, i) => {
+      if (i === idx) {
+        b.style.background = '#0057b8'; b.style.color = '#fff'; b.style.borderColor = '#0057b8';
+      } else {
+        b.style.background = '#f7f9fc'; b.style.color = '#2c3e5a'; b.style.borderColor = '#d0dbeb';
+      }
+    });
+    chartRegionais.data.datasets[0].backgroundColor = regData.map((_, i) => (i === idx ? '#0057b8' : blueLight));
+    chartRegionais.data.datasets[0].borderColor = regData.map((_, i) => (i === idx ? '#003f86' : 'transparent'));
+    chartRegionais.update();
+    const nomeReg = regData[idx];
+    const detalhe = regDetail.find(r => r.regional === nomeReg);
+    document.getElementById('regiaoSelecionadaTitulo').textContent =
+      detalhe ? (nomeReg + ' — ' + detalhe.total + ' PDVs') : nomeReg;
+    renderPDVs(detalhe ? detalhe.pdvs : []);
+    document.getElementById('buscaPdvNaRegiao').value = '';
+  }
+
+  function renderPDVs(lista, filtroTexto = '') {
+    const body = document.getElementById('pdvsTabelaBody');
+    const q = filtroTexto.trim().toUpperCase();
+    body.innerHTML = '';
+    let count = 0;
+    const max = 200;
+    for (const p of lista) {
+      if (q && !(p.nome.toUpperCase().includes(q) || String(p.codigo).includes(q) || p.rede.toUpperCase().includes(q))) continue;
+      if (count >= max) break;
+      count++;
+      const tr = document.createElement('tr');
+      tr.style.cssText = 'border-top:1px solid #f0f3f7;';
+      tr.innerHTML = `
+        <td style="padding:7px 12px; color:#0057b8; font-weight:600;">#${p.codigo}</td>
+        <td style="padding:7px 12px; color:#0d1b2a;">${p.nome}</td>
+        <td style="padding:7px 12px;">${p.rede && p.rede !== '—' ? `<span style="background:#fff6c8; color:#7a5d00; padding:2px 7px; border-radius:8px; font-size:.72rem; font-weight:600;">${p.rede}</span>` : '<span style="color:#b5c0d3;">—</span>'}</td>
+        <td style="padding:7px 12px; color:#556; font-size:.78rem; max-width:300px;">${p.endereco}</td>
+      `;
+      body.appendChild(tr);
+    }
+    if (count === 0) {
+      body.innerHTML = `<tr><td colspan="4" style="padding:24px; text-align:center; color:#8fa1bd;">${q ? 'Nenhum resultado para "' + filtroTexto + '"' : 'Nenhum PDV nesta região'}</td></tr>`;
+    } else if (lista.length > max) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="4" style="padding:10px; text-align:center; color:#667a99; font-size:.78rem; background:#f7f9fc;">Mostrando ${max} de ${lista.length} PDVs — use a busca para refinar</td>`;
+      body.appendChild(tr);
+    }
+  }
+
+  document.getElementById('buscaPdvNaRegiao').addEventListener('input', (e) => {
+    if (currentRegiaoIdx < 0) return;
+    const nomeReg = regData[currentRegiaoIdx];
+    const detalhe = regDetail.find(r => r.regional === nomeReg);
+    renderPDVs(detalhe ? detalhe.pdvs : [], e.target.value);
+  });
+});
+</script>
+
+<!-- KPIs de roteiro -->
+<div class="kpi-grid four" style="margin-top:24px;">
+  <div class="card kpi">
+    <span>Roteiros Cadastrados</span>
+    <strong>{{ total_rotas }}</strong>
+    <small>Pares Promotor x PDV</small>
+  </div>
+  <div class="card kpi">
+    <span>Custo Médio / Rota</span>
+    <strong class="money-kpi">R$ {{ avg_custo_por_visita|brnum }}</strong>
+    <small>VT por visita de PDV</small>
+  </div>
+  <div class="card kpi">
+    <span>Ônibus com Alta Rota</span>
+    <strong>{{ total_onibus_alta }}</strong>
+    <small>5+ PDVs no roteiro</small>
+  </div>
+  <div class="card kpi">
+    <span>Candidatos Regra 750m</span>
+    <strong>{{ total_candidatos_750m }}</strong>
+    <small>2+ PDVs no mesmo dia/cidade</small>
+  </div>
+</div>
+
+<!-- Visitas por Dia + Supervisores por Roteiros -->
+<div class="two section" style="margin-top:24px;">
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">FREQUÊNCIA</span>
+        <h2>Visitas por Dia da Semana</h2>
+        <p class="muted">Total de roteiros ativos por dia. Média de PDVs/dia por promotor: <strong>{{ avg_pdvs_per_day }}</strong></p>
+      </div>
+    </div>
+    <div style="height:300px;position:relative;margin-top:12px;">
+      <canvas id="chartVisitasDia"></canvas>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">SUPERVISORES</span>
+        <h2>Equipes por Volume de Roteiros</h2>
+        <p class="muted">Ranking pelo número de PDVs atendidos pela equipe — com a região de cada supervisor.</p>
+      </div>
+    </div>
+    <div style="height:340px;position:relative;margin-top:12px;">
+      <canvas id="chartSupVisitas"></canvas>
+    </div>
+    <div style="margin-top:10px; padding:8px 4px; display:flex; gap:6px; flex-wrap:wrap;">
+      {% for s in sup_visitas_full %}
+        <span style="background:#f0f5ff; padding:4px 9px; border-radius:12px; font-size:.76rem; color:#2c3e5a; border:1px solid #d9e4f7;">
+          <strong>{{ s.uf }}</strong> · {{ s.name.split()[0] }} {{ s.name.split()[-1] if s.name.split()|length > 1 else '' }}
+          <span style="color:#0057b8; font-weight:700; margin-left:3px;">{{ s.rotas }}</span>
+          <span style="color:#667a99; margin-left:2px;">({{ s.promoters }})</span>
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Custo por Rota (Top 10) -->
+<div class="section" style="margin-top:24px;">
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">FINANCEIRO · OPERAÇÃO</span>
+        <h2>Custo por Rota (Visita de PDV)</h2>
+        <p class="muted">Promotores com maior custo médio por visita — VT da quinzena dividido pelo total de PDVs no roteiro.</p>
+      </div>
+    </div>
+    <div style="height:320px;position:relative;margin-top:12px;">
+      <canvas id="chartCustoVisita"></canvas>
+    </div>
+    <div style="margin-top:14px; border-radius:10px; border:1px solid #eef1f6; overflow:hidden;">
+      <table style="width:100%;font-size:.82rem;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f0f5ff;">
+            <th style="padding:8px 12px;text-align:left;">Promotor</th>
+            <th style="padding:8px 12px;text-align:left;">UF</th>
+            <th style="padding:8px 12px;text-align:left;">Supervisor</th>
+            <th style="padding:8px 12px;text-align:right;">VT</th>
+            <th style="padding:8px 12px;text-align:right;">PDVs</th>
+            <th style="padding:8px 12px;text-align:right;">Custo/Rota</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for x in top_custo_visita %}
+          <tr style="border-top:1px solid #f0f0f0;">
+            <td style="padding:7px 12px; color:#0d1b2a;">{{ x.name }}</td>
+            <td style="padding:7px 12px;"><span class="tag blue" style="font-size:.76rem;">{{ x.uf }}</span></td>
+            <td style="padding:7px 12px; color:#556; font-size:.8rem;">{{ x.supervisor_short or '—' }}</td>
+            <td style="padding:7px 12px;text-align:right;">R$ {{ x.total|brnum }}</td>
+            <td style="padding:7px 12px;text-align:right;">{{ x.rotas }}</td>
+            <td style="padding:7px 12px;text-align:right;font-weight:700;color:#0057b8;">R$ {{ x.custo_por_rota|brnum }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Ônibus c/ Alta Rota + Regra 750m -->
+<div class="two section" style="margin-top:24px;">
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">LOGÍSTICA · MODAL</span>
+        <h2>Ônibus com Alta Densidade de Roteiro</h2>
+        <p class="muted">Promotores de ônibus com 5+ PDVs — candidatos a revisão de rota ou modal.</p>
+      </div>
+    </div>
+    {% if onibus_alta_rota %}
+    <div style="margin-top:10px; border-radius:10px; border:1px solid #eef1f6; overflow:hidden; max-height:380px; overflow-y:auto;">
+    <table style="width:100%;font-size:.82rem;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#f0f5ff; position:sticky; top:0;">
+          <th style="padding:8px 10px;text-align:left;">Promotor</th>
+          <th style="padding:8px 10px;text-align:left;">Cidade/UF</th>
+          <th style="padding:8px 10px;text-align:left;">Supervisor</th>
+          <th style="padding:8px 10px;text-align:right;">PDVs</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in onibus_alta_rota %}
+        <tr style="border-top:1px solid #f0f0f0;">
+          <td style="padding:7px 10px;">{{ p.name }}</td>
+          <td style="padding:7px 10px; font-size:.8rem;">{{ p.city }} <span class="tag blue" style="font-size:.72rem; margin-left:4px;">{{ p.uf }}</span></td>
+          <td style="padding:7px 10px; color:#556; font-size:.78rem;">{{ p.supervisor_short or '—' }}</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:700;color:#0057b8;">{{ p.rotas }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted" style="margin-top:16px;">Nenhum promotor de ônibus com 5+ PDVs encontrado.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="section-title">
+      <div>
+        <span class="mini-label">LOGÍSTICA · LOJAS PRÓXIMAS</span>
+        <h2>Candidatos à Regra de 750 Metros</h2>
+        <p class="muted">Promotor que visita 2+ PDVs na mesma cidade no mesmo dia.</p>
+      </div>
+    </div>
+    {% if candidatos_750m %}
+    <div style="margin-top:10px; border-radius:10px; border:1px solid #fff3cd; overflow:hidden; max-height:380px; overflow-y:auto; background:#fffdf5;">
+    <table style="width:100%;font-size:.82rem;border-collapse:collapse;">
+      <thead>
+        <tr style="background:#fff7db; position:sticky; top:0;">
+          <th style="padding:8px 10px;text-align:left;">Promotor</th>
+          <th style="padding:8px 10px;text-align:left;">Dia</th>
+          <th style="padding:8px 10px;text-align:left;">Cidade</th>
+          <th style="padding:8px 10px;text-align:right;">PDVs</th>
+          <th style="padding:8px 10px;text-align:left;">Lojas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in candidatos_750m %}
+        <tr style="border-top:1px solid #f5ecd2;">
+          <td style="padding:7px 10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ c.promotor }}</td>
+          <td style="padding:7px 10px;">{{ c.dia }}</td>
+          <td style="padding:7px 10px;">{{ c.cidade }}</td>
+          <td style="padding:7px 10px;text-align:right;font-weight:700;color:#b45309;">{{ c.pdvs }}</td>
+          <td style="padding:7px 10px;color:#556;font-size:.78rem;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="{{ c.lista }}">{{ c.lista }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted" style="margin-top:16px;">Nenhum candidato encontrado.</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  new Chart(document.getElementById('chartVisitasDia'), {
+    type: 'bar',
+    data: {
+      labels: {{ visitas_labels|safe }},
+      datasets: [{
+        label: 'Roteiros',
+        data: {{ visitas_values|safe }},
+        backgroundColor: ['#0057b8','#0057b8','#0057b8','#0057b8','#0057b8','#ffd500','#ef4444'],
+        borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, grid: { color: '#f0f0f0' } } }
+    }
+  });
+
+  new Chart(document.getElementById('chartSupVisitas'), {
+    type: 'bar',
+    data: {
+      labels: {{ sup_visitas_labels|safe }},
+      datasets: [{
+        label: 'Roteiros em Campo',
+        data: {{ sup_visitas_values|safe }},
+        backgroundColor: '#10b981',
+        borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true, grid: { color: '#f0f0f0' } } }
+    }
+  });
+
+  new Chart(document.getElementById('chartCustoVisita'), {
+    type: 'bar',
+    data: {
+      labels: {{ custo_visita_chart_labels|safe }},
+      datasets: [{
+        label: 'Custo/Rota (R$)',
+        data: {{ custo_visita_chart_values|safe }},
+        backgroundColor: '#ef4444',
+        borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false },
+        tooltip: { callbacks: { label: ctx => 'R$ ' + ctx.raw.toFixed(2).replace('.', ',') } }
+      },
+      scales: { x: { beginAtZero: true, grid: { color: '#f0f0f0' },
+        ticks: { callback: v => 'R$ ' + v.toFixed(0) }
+      } }
+    }
+  });
+});
+</script>
+{% endblock %}

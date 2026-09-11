@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QS Ajuda de Custos</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-shell qs-shell">
+  <aside class="sidebar qs-sidebar">
+    <div class="qs-brand-block">
+      <div class="qs-mark">QS</div>
+      <div><div class="brand">Ajuda de Custos</div><div class="version">V0.9.2 · Operação quinzenal</div></div>
+    </div>
+    <nav class="main-nav">
+      <a class="{% if request.url.path == '/' %}active{% endif %}" href="/">Início</a>
+      <a class="{% if request.url.path.startswith('/pessoas') or request.url.path.startswith('/colaboradores') or request.url.path.startswith('/ocorrencias') %}active{% endif %}" href="/pessoas">Pessoas</a>
+      <a class="{% if request.url.path.startswith('/regras') or request.url.path.startswith('/tarifas') or request.url.path.startswith('/feriados') or request.url.path.startswith('/politicas') or request.url.path.startswith('/homologacoes') %}active{% endif %}" href="/regras-operacionais">Regras</a>
+      <a class="{% if request.url.path.startswith('/quinzenas') or request.url.path.startswith('/calculos') or request.url.path.startswith('/ajustes') %}active{% endif %}" href="/quinzenas">Quinzenas</a>
+      <a class="{% if request.url.path.startswith('/pdvs') %}active{% endif %}" href="/pdvs">PDV'S</a>
+      <a class="{% if request.url.path.startswith('/inteligencia') %}active{% endif %}" href="/inteligencia">Inteligência</a>
+    </nav>
+    {% if request.state.user and request.state.user.role == 'ADMIN' %}
+    <div class="admin-nav">
+      <div class="nav-caption">ADMINISTRAÇÃO</div>
+      <a href="/admin/usuarios">Usuários e permissões</a>
+      <a href="/admin/importar-roteiros">Importar Roteiros (Puzzle)</a>
+      <a href="/admin/auditoria">Auditoria</a>
+      <a href="/configuracoes">Configurações</a>
+    </div>
+    {% endif %}
+    <div class="sidebar-bottom">
+      {% if request.state.user %}
+      <div class="user-chip">
+        <div class="avatar">{{ request.state.user.display_name[:1]|upper }}</div>
+        <div><strong>{{ request.state.user.display_name }}</strong><span>{{ request.state.user.role }}</span></div>
+      </div>
+      <form method="post" action="/logout"><button class="logout-btn" type="submit">Sair</button></form>
+      {% endif %}
+    </div>
+  </aside>
+  <main class="content qs-content">{% block content %}{% endblock %}</main>
+</div>
+</body>
+</html>

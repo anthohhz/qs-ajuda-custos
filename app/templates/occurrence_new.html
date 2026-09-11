@@ -1,0 +1,33 @@
+{% extends "base.html" %}{% block content %}
+<a class="back" href="/pessoas">← Pessoas</a>
+<div class="page-head"><div><p class="eyebrow">REGISTRO OPERACIONAL</p><h1>O que aconteceu?</h1><p class="muted">Escolha o evento. O QS mostra somente os campos necessários e sugere o impacto inicial.</p></div></div>
+<form class="event-wizard" method="post" action="/ocorrencias/nova" id="eventForm">
+  <section class="card"><label>Colaborador<select name="employee_id" required><option value="">Selecione...</option>{% for e in employees %}<option value="{{ e.id }}" {% if selected_employee_id==e.id %}selected{% endif %}>{{ e.name }} · {{ e.work_city or '—' }}/{{ e.work_state or '—' }}</option>{% endfor %}</select></label></section>
+  <section class="event-types">
+    <button type="button" class="event-type" data-kind="FÉRIAS" data-impact="REMOVE_DAY"><span>☀</span><strong>Férias</strong><small>Período sem dias elegíveis</small></button>
+    <button type="button" class="event-type" data-kind="FALTA" data-impact="REMOVE_DAY"><span>!</span><strong>Falta</strong><small>Retira dia elegível</small></button>
+    <button type="button" class="event-type" data-kind="ATESTADO" data-impact="BLOCK"><span>＋</span><strong>Atestado</strong><small>Começa em revisão</small></button>
+    <button type="button" class="event-type" data-kind="LICENÇA" data-impact="BLOCK"><span>▣</span><strong>Licença</strong><small>Período para validação</small></button>
+    <button type="button" class="event-type" data-kind="AFASTAMENTO" data-impact="BLOCK"><span>◷</span><strong>Afastamento</strong><small>Período para validação</small></button>
+    <button type="button" class="event-type" data-kind="PASSAGEM_ADICIONAL" data-impact="ADD_VT"><span>＋VT</span><strong>Passagem adicional</strong><small>Soma ao Total Conhecido</small></button>
+    <button type="button" class="event-type" data-kind="LOJAS_PROXIMAS" data-impact="REMOVE_VT"><span>750m</span><strong>Lojas próximas</strong><small>Trecho sem passagem</small></button>
+    <button type="button" class="event-type" data-kind="VIAGEM" data-impact="BLOCK"><span>↗</span><strong>Viagem / apoio</strong><small>Exige conferência</small></button>
+    <button type="button" class="event-type" data-kind="OUTRO" data-impact="INFO"><span>•••</span><strong>Outro</strong><small>Registro informativo</small></button>
+  </section>
+  <input type="hidden" name="kind" id="kind" required><input type="hidden" name="impact_mode" id="impactMode" value="INFO">
+  <section class="card event-details" id="eventDetails">
+    <div class="event-selected"><span class="mini-label">EVENTO SELECIONADO</span><strong id="selectedLabel">Escolha uma opção acima</strong></div>
+    <div class="form-grid"><label>Data inicial<input type="date" name="start_date"></label><label>Data final<input type="date" name="end_date"><span class="field-help">Para um único dia, deixe igual ou vazio.</span></label></div>
+    <div id="quantityWrap" class="hidden"><label>Quantidade de passagens<input name="quantity_delta" inputmode="decimal" placeholder="Ex.: 2"><span class="field-help">Valor financeiro usa a tarifa aplicável do colaborador.</span></label></div>
+    <label>Como deve impactar o cálculo?<select name="impact_mode_visible" id="impactVisible"><option value="REMOVE_DAY">Retirar dia(s) elegível(is)</option><option value="ADD_VT">Adicionar passagem(ns)</option><option value="REMOVE_VT">Retirar passagem(ns)</option><option value="BLOCK">Enviar para revisão antes de calcular</option><option value="INFO">Somente registrar no histórico</option></select></label>
+    <label>Observação<textarea name="notes" rows="3" placeholder="Explique somente o necessário para o setor entender a ocorrência."></textarea></label>
+    <div class="form-actions"><a class="btn secondary" href="/pessoas">Cancelar</a><button class="btn" type="submit">Salvar ocorrência</button></div>
+  </section>
+</form>
+<script>
+const buttons=[...document.querySelectorAll('.event-type')], kind=document.getElementById('kind'), impact=document.getElementById('impactMode'), visible=document.getElementById('impactVisible'), label=document.getElementById('selectedLabel'), qty=document.getElementById('quantityWrap');
+buttons.forEach(b=>b.addEventListener('click',()=>{buttons.forEach(x=>x.classList.remove('selected'));b.classList.add('selected');kind.value=b.dataset.kind;impact.value=b.dataset.impact;visible.value=b.dataset.impact;label.textContent=b.querySelector('strong').textContent;qty.classList.toggle('hidden',!['ADD_VT','REMOVE_VT'].includes(b.dataset.impact));document.getElementById('eventDetails').scrollIntoView({behavior:'smooth',block:'nearest'});}));
+visible.addEventListener('change',()=>{impact.value=visible.value;qty.classList.toggle('hidden',!['ADD_VT','REMOVE_VT'].includes(visible.value));});
+document.getElementById('eventForm').addEventListener('submit',e=>{if(!kind.value){e.preventDefault();alert('Escolha o tipo de evento.');}});
+</script>
+{% endblock %}

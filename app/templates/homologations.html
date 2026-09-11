@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">HOMOLOGAÇÃO</p>
+    <h1>Pendências de negócio</h1>
+    <p class="muted">Somente casos em que o sistema não deve decidir sozinho.</p>
+  </div>
+  <div class="head-actions">
+    <a class="tab {% if filter_status == 'pending' %}active{% endif %}" href="/homologacoes?status=pending">Pendentes ({{ pending }})</a>
+    <a class="tab {% if filter_status == 'approved' %}active{% endif %}" href="/homologacoes?status=approved">Homologadas ({{ approved }})</a>
+    <a class="tab {% if filter_status == 'all' %}active{% endif %}" href="/homologacoes?status=all">Todas ({{ total }})</a>
+  </div>
+</div>
+
+<div class="card table-card">
+<table>
+  <thead>
+    <tr><th>#</th><th>Localidade</th><th>Tipo</th><th>Decisão necessária</th><th>Status</th><th></th></tr>
+  </thead>
+  <tbody>
+  {% for item in rows %}
+    <tr>
+      <td>{{ item.id }}</td>
+      <td><strong>{{ item.location }}</strong><div class="subtle">{{ item.source_sheet }} · linha {{ item.source_row }}</div></td>
+      <td><span class="tag">{{ item.source_table }}</span></td>
+      <td>{{ item.decision_needed }}<div class="subtle clamp">{{ item.original_text }}</div></td>
+      <td>{% if item.status == 'approved' %}<span class="status approved">Homologada</span>{% elif item.status == 'draft' %}<span class="status draft">Rascunho</span>{% else %}<span class="status pending">Pendente</span>{% endif %}</td>
+      <td><a class="btn small" href="/homologacoes/{{ item.id }}">{% if item.status == 'approved' %}Ver{% else %}Decidir{% endif %}</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="empty">Nenhum registro neste filtro.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

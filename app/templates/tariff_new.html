@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/tarifas">← Tarifas</a>
+<div class="page-head"><div><p class="eyebrow">NOVA TARIFA</p><h1>Adicionar passagem</h1><p class="muted">Use a vigência para manter o histórico: uma tarifa nova não precisa apagar o valor anterior.</p></div></div>
+{% if request.query_params.get('erro') %}<div class="notice error-notice">Preencha cidade, UF e um valor válido.</div>{% endif %}
+<form class="card form-wide" method="post" action="/tarifas/nova">
+  <div class="form-grid"><label>Cidade<input name="city" required placeholder="Ex.: Salvador"></label><label>Estado<select name="uf" required><option value="">Selecione...</option>{% for code,name in ufs.items() %}<option value="{{ code }}">{{ code }} · {{ name }}</option>{% endfor %}</select></label></div>
+  <div class="form-grid"><label>Modal<select name="modal"><option value="ONIBUS">Ônibus</option><option value="MOTO">Moto / moto táxi</option><option value="OUTRO">Outro</option></select></label><label>Valor<input name="amount" inputmode="decimal" required placeholder="Ex.: 5,90"></label></div>
+  <label>Vigência inicial<input type="date" name="valid_from"><span class="field-help">Se a tarifa mudou, informe a data em que o novo valor passou a valer.</span></label>
+  <label>Fonte / observação<textarea name="notes" rows="4" placeholder="Ex.: tarifa municipal informada pelo setor / fonte oficial"></textarea></label>
+  <div class="form-actions"><a class="btn secondary" href="/tarifas">Cancelar</a><button class="btn" type="submit">Salvar tarifa</button></div>
+</form>
+{% endblock %}

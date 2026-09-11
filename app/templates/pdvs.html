@@ -1,0 +1,70 @@
+{% extends "base.html" %}{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">OPERAÇÃO</p>
+    <h1>PDV'S</h1>
+    <p class="muted">Catálogo integrado de lojas, bandeiras e endereços importados para roteirização e cálculo de deslocamento.</p>
+  </div>
+  <span class="pill good">{{ total }} PDV'S cadastrados</span>
+</div>
+<div class="card filter-card">
+  <form class="filter-form" method="get">
+    <label>Buscar
+      <input name="q" value="{{ q }}" placeholder="Nome do PDV, código, rede ou endereço">
+    </label>
+    <label>Regional
+      <select name="regional">
+        <option value="">Todas as regionais</option>
+        {% for reg in regionais %}
+        <option value="{{ reg }}" {% if regional == reg %}selected{% endif %}>{{ reg }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button class="btn" type="submit">Filtrar</button>
+    <a class="btn secondary" href="/pdvs">Limpar</a>
+  </form>
+</div>
+<div class="card table-card section">
+  <table>
+    <thead>
+      <tr>
+        <th style="width:100px;">Cód. PDV</th>
+        <th>Ponto de Venda</th>
+        <th>Bandeira / Rede</th>
+        <th style="width:130px;">Regional</th>
+        <th style="width:150px;">CNPJ</th>
+        <th>Endereço</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in rows %}
+      <tr>
+        <td><strong>{{ p.codigo_pdv }}</strong></td>
+        <td><strong>{{ p.nome_pdv }}</strong></td>
+        <td>{{ p.bandeira or '—' }}<div class="subtle">{{ p.rede or '' }}</div></td>
+        <td><span class="tag blue">{{ p.regional or '—' }}</span></td>
+        <td>{{ p.cnpj or '—' }}</td>
+        <td><small>{{ p.endereco or '—' }}</small></td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="6" class="empty">Nenhum ponto de venda encontrado.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if total_pages > 1 %}
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-top:1px solid #e2e8f0;">
+    <div class="subtle">Página {{ page }} de {{ total_pages }} ({{ total }} registros)</div>
+    <div style="display:flex; gap:8px;">
+      {% if page > 1 %}
+      <a class="btn small secondary" href="?q={{ q }}&regional={{ regional }}&page={{ page - 1 }}">← Anterior</a>
+      {% endif %}
+      {% if page < total_pages %}
+      <a class="btn small secondary" href="?q={{ q }}&regional={{ regional }}&page={{ page + 1 }}">Próxima →</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

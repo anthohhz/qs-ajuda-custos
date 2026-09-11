@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <p class="eyebrow">BASE DE REGRAS</p>
+    <h1>Regras homologadas</h1>
+    <p class="muted">Uma regra pode ter vários valores, trajetos, modais ou exceções. Tudo permanece ligado à linha original da migração.</p>
+  </div>
+  <span class="pill">{{ rows|length }} regras ativas</span>
+</div>
+
+<div class="rules-grid">
+{% for r in rows %}
+  <div class="card rule-card">
+    <div class="rule-card-head">
+      <div><strong>{{ r.location }}</strong><div class="subtle">{{ r.source_sheet }} · linha {{ r.source_row }}</div></div>
+      <span class="tag">{{ r.rule_kind }}</span>
+    </div>
+    {% if r.scope %}<div class="scope-line"><span>Escopo</span><strong>{{ r.scope }}</strong></div>{% endif %}
+    <div class="rule-options">
+      {% for o in r.options %}
+      <div class="rule-option">
+        <div class="rule-option-top"><strong>{{ o.label or ('Condição ' ~ loop.index) }}</strong><span>{{ o.amount|brl }}</span></div>
+        {% if o.condition %}<div>{{ o.condition }}</div>{% endif %}
+        <div class="subtle">
+          {% if o.modal %}{{ o.modal }}{% endif %}
+          {% if o.origin or o.destination %}{% if o.modal %} · {% endif %}{{ o.origin or '—' }} → {{ o.destination or '—' }}{% endif %}
+          {% if o.valid_from %} · desde {{ o.valid_from[8:10] }}/{{ o.valid_from[5:7] }}/{{ o.valid_from[0:4] }}{% endif %}
+        </div>
+      </div>
+      {% else %}<div class="subtle">Regra sem valor financeiro direto.</div>{% endfor %}
+    </div>
+    {% if r.notes %}<div class="rule-notes">{{ r.notes }}</div>{% endif %}
+  </div>
+{% else %}
+  <div class="card empty">Nenhuma regra homologada ainda. Vá em Pendências e aprove a primeira.</div>
+{% endfor %}
+</div>
+{% endblock %}

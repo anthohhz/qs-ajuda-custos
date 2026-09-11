@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/feriados">← Feriados</a>
+<div class="page-head"><div><p class="eyebrow">NOVO FERIADO</p><h1>Adicionar ao calendário</h1><p class="muted">Ideal para feriados municipais, datas locais e ajustes que surgirem depois da implantação.</p></div></div>
+{% if request.query_params.get('erro') %}<div class="notice error-notice">Confira data, nome, escopo, UF e cidade quando o feriado for municipal.</div>{% endif %}
+<form class="card form-wide" method="post" action="/feriados/novo">
+  <div class="form-grid"><label>Data<input type="date" name="date" required></label><label>Nome do feriado<input name="name" required placeholder="Ex.: Aniversário da cidade"></label></div>
+  <div class="form-grid"><label>Escopo<select name="scope_type"><option value="MUNICIPAL">Municipal</option><option value="STATE">Estadual / Distrito Federal</option><option value="NATIONAL">Nacional</option></select></label><label>Categoria<select name="category"><option value="FERIADO">Feriado</option><option value="PONTO_FACULTATIVO">Ponto facultativo</option></select></label></div>
+  <div class="form-grid"><label>UF<select name="uf"><option value="">—</option>{% for code,name in ufs.items() %}<option value="{{ code }}">{{ code }} · {{ name }}</option>{% endfor %}</select></label><label>Cidade<input name="city" placeholder="Obrigatória para escopo municipal"></label></div>
+  <label class="check-line"><input type="checkbox" name="affects_calculation" checked> <span>Este dia retira automaticamente a elegibilidade no cálculo da ajuda de custos</span></label>
+  <label>Observação / base legal<textarea name="notes" rows="4" placeholder="Fonte ou regra operacional"></textarea></label>
+  <div class="form-actions"><a class="btn secondary" href="/feriados">Cancelar</a><button class="btn" type="submit">Salvar feriado</button></div>
+</form>
+{% endblock %}

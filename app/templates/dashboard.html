@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="welcome-row">
+  <div><p class="eyebrow">CENTRAL DE TRABALHO</p><h1>Olá, {{ request.state.user.display_name.split(' ')[0] }}.</h1><p class="muted">Aqui está o que precisa da sua atenção na quinzena atual.</p></div>
+  <div class="current-period-badge"><span>{{ current_period.half }}ª QUINZENA</span><strong>{{ current_period.start_date|brdate }} → {{ current_period.end_date|brdate }}</strong><small>{{ month_label }}</small></div>
+</div>
+
+<div class="hero-grid">
+  <section class="card hero-total"><span class="mini-label">TOTAL CONHECIDO</span><strong>{{ stats.total|brl }}</strong><p>Ajuda calculada + créditos/reembolsos aprovados − descontos/débitos.</p><div class="hero-breakdown"><span>Ajuda {{ stats.base_total|brl }}</span><span>Reembolsos +{{ stats.reimbursements|brl }}</span><span>Descontos −{{ stats.discounts|brl }}</span></div></section>
+  <section class="card hero-status"><div class="status-circle {% if attention %}attention{% else %}ok{% endif %}">{{ attention }}</div><div><span class="mini-label">PRECISA DE ATENÇÃO</span><h2>{% if attention %}Itens para revisar{% else %}Tudo em dia{% endif %}</h2><p class="muted">{{ stats.review }} cálculo(s), {{ pending_adjustments }} ajuste(s) e {{ sync_review }} cadastro(s).</p></div></section>
+</div>
+
+<div class="daily-actions">
+  {% if request.state.user.role in ['ADMIN','BENEFICIOS'] %}<a class="action-tile primary" href="/ocorrencias/nova"><span>＋</span><div><strong>Registrar ocorrência</strong><small>Férias, falta, licença, passagem adicional...</small></div></a>{% endif %}
+  <a class="action-tile" href="/quinzenas/{{ current_period.id }}"><span>▦</span><div><strong>Abrir quinzena</strong><small>Resultados e memória de cálculo</small></div></a>
+  <a class="action-tile" href="/quinzenas/{{ current_period.id }}/ajustes"><span>R$</span><div><strong>Reembolsos e ajustes</strong><small>{{ pending_adjustments }} pendente(s)</small></div></a>
+  <a class="action-tile" href="/colaboradores"><span>👤</span><div><strong>Consultar pessoa</strong><small>{{ employees }} no escopo operacional</small></div></a>
+</div>
+
+<div class="two section dashboard-lower">
+  <section class="card"><div class="card-head"><div><span class="mini-label">QUINZENA ATUAL</span><h2>Status do processamento</h2></div><span class="pill">{{ status_labels.get(current_period.status,current_period.status) }}</span></div>
+    <div class="attention-list"><a href="/quinzenas/{{ current_period.id }}?status=calculated"><span class="dot good-dot"></span><div><strong>{{ stats.calculated }}</strong><small>calculados</small></div></a><a href="/quinzenas/{{ current_period.id }}?status=review"><span class="dot warn-dot"></span><div><strong>{{ stats.review }}</strong><small>para revisar</small></div></a><a href="/ocorrencias"><span class="dot blue-dot"></span><div><strong>{{ active_occurrences }}</strong><small>ocorrências ativas no período</small></div></a></div>
+    {% if request.state.user.role in ['ADMIN','BENEFICIOS'] and current_period.status != 'closed' %}<form method="post" action="/quinzenas/{{ current_period.id }}/processar"><button class="btn" type="submit">{% if stats.rows %}Reprocessar quinzena{% else %}Processar quinzena{% endif %}</button></form>{% endif %}
+  </section>
+  <section class="card"><span class="mini-label">BASE OPERACIONAL</span><h2>Escopo atual</h2><div class="metric-list"><div><span>No cálculo</span><strong>{{ employees }}</strong></div><div><span>Fora do escopo</span><strong>{{ out_scope }}</strong></div><div><span>Regras homologadas</span><strong>{{ rules }}</strong></div><div><span>Pendências históricas</span><strong>{{ pending }}</strong></div></div><p class="muted small-text">Administrativo/outros fica fora do cálculo e não aparece na rotina normal.</p></section>
+</div>
+{% endblock %}

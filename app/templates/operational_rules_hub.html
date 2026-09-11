@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><p class="eyebrow">REGRAS</p><h1>Regras da Ajuda de Custos</h1><p class="muted">Tudo que determina o cálculo fica agrupado aqui. O usuário não precisa navegar por várias áreas do sistema.</p></div>
+  {% if pending %}<a class="btn secondary" href="/homologacoes?status=pending">{{ pending }} pendência(s) histórica(s)</a>{% endif %}
+</div>
+<div class="hub-grid rules-hub">
+  <a class="card hub-card" href="/pdvs"><span class="mini-label">LOJAS</span><strong>{{ pdvs }}</strong><h2>PDV'S</h2><p>Catálogo de 3.043 PDVs para roteirização e regras de proximidade.</p><span class="hub-action">Abrir catálogo →</span></a>
+  <a class="card hub-card" href="/tarifas"><span class="mini-label">VT</span><strong>{{ tariffs }}</strong><h2>Tarifas</h2><p>Consultar e cadastrar cidades que ainda não possuem passagem no catálogo.</p><span class="hub-action">Gerenciar tarifas →</span></a>
+  <a class="card hub-card" href="/feriados"><span class="mini-label">CALENDÁRIO</span><strong>{{ holidays }}</strong><h2>Feriados</h2><p>Calendário nacional + estadual/distrital 2026 e feriados municipais adicionados no QS.</p><span class="hub-action">Abrir calendário →</span></a>
+  <a class="card hub-card" href="/politicas"><span class="mini-label">CÁLCULO</span><strong>{{ policies_approved }}/{{ policies }}</strong><h2>Políticas</h2><p>Dias da semana e quantidade-base de VT por carga horária.</p><span class="hub-action">Abrir políticas →</span></a>
+  <a class="card hub-card" href="/regras"><span class="mini-label">HISTÓRICO MIGRADO</span><strong>{{ homologated }}</strong><h2>Regras homologadas</h2><p>Decisões extraídas da antiga planilha e já transformadas em regra estruturada.</p><span class="hub-action">Consultar regras →</span></a>
+</div>
+<div class="card section info-card"><strong>Regra de lojas próximas</strong><p>Trechos entre lojas próximas não devem gerar passagem. Nesta versão já é possível registrar a retirada de VT em Ocorrências; a regra automática de até 750 m fica preparada para receber as distâncias do Puzzle.</p></div>
+{% endblock %}
