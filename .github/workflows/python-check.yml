@@ -31,3 +31,37 @@ jobs:
           QS_SESSION_SECRET: ci-only-session-secret
           QS_AJUDA_DATA_DIR: /tmp/qs-ajuda-custos-ci
         run: python -c "import app.main; print(app.main.app.title)"
+
+      - name: Smoke test V0.9.3
+        env:
+          QS_SESSION_SECRET: ci-only-session-secret
+          QS_AJUDA_DATA_DIR: /tmp/qs-ajuda-custos-ci
+        run: |
+          python - <<'PY'
+          from app.main import app
+          from app.seed import seed
+          from app.calendar_v2 import templates as calendar_templates
+          from app.occurrence_v2 import templates as occurrence_templates
+          from app.route_v2 import templates as route_templates
+
+          seed()
+          paths = {getattr(route, 'path', None) for route in app.router.routes}
+          required = {
+              '/colaboradores/{employee_id}',
+              '/ocorrencias',
+              '/ocorrencias/nova',
+              '/roteiros',
+              '/roteiros/novo',
+              '/api/localidades/cidades',
+          }
+          missing = required - paths
+          assert not missing, f'Rotas ausentes: {sorted(missing)}'
+
+          calendar_templates.get_template('employee_detail_v2.html')
+          occurrence_templates.get_template('occurrence_new_v2.html')
+          occurrence_templates.get_template('occurrences_v2.html')
+          route_templates.get_template('routes_v2.html')
+          route_templates.get_template('route_new_v2.html')
+          route_templates.get_template('route_detail_v2.html')
+          print('V0.9.3 smoke test OK')
+          PY
