@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/feriados">← Feriados</a>
+<div class="page-head"><div><p class="eyebrow">NOVO FERIADO</p><h1>Adicionar ao calendário</h1><p class="muted">O QS usa localidades padronizadas para que o feriado seja aplicado ao colaborador correto.</p></div></div>
+{% if request.query_params.get('erro') %}<div class="notice error-notice">{% if request.query_params.get('erro')=='duplicado' %}Já existe um feriado ativo com a mesma data, escopo e localidade.{% elif request.query_params.get('erro')=='cidade' %}Selecione uma cidade válida para a UF escolhida.{% else %}Confira data, nome, escopo e localidade.{% endif %}</div>{% endif %}
+<form class="card form-wide" method="post" action="/feriados/novo">
+  <div class="form-grid"><label>Data<input type="date" name="date" required></label><label>Nome do feriado<input name="name" required placeholder="Ex.: Aniversário da cidade"></label></div>
+  <div class="form-grid"><label>Escopo<select name="scope_type" id="scopeSelect"><option value="MUNICIPAL">Municipal</option><option value="STATE">Estadual / Distrito Federal</option><option value="NATIONAL">Nacional</option></select></label><label>Categoria<select name="category"><option value="FERIADO">Feriado</option><option value="PONTO_FACULTATIVO">Ponto facultativo</option></select></label></div>
+  <div class="form-grid">
+    <label id="ufWrap">UF<select name="uf" id="ufSelect"><option value="">Selecione...</option>{% for code,name in ufs.items() %}<option value="{{ code }}">{{ code }} · {{ name }}</option>{% endfor %}</select></label>
+    <label id="cityWrap">Cidade<select name="city_id" id="citySelect" disabled><option value="">Selecione primeiro o estado</option></select><span class="field-help">Não é possível digitar a cidade manualmente.</span></label>
+  </div>
+  <label class="check-line"><input type="checkbox" name="affects_calculation" checked> <span>Este dia retira automaticamente a elegibilidade no cálculo da ajuda de custos</span></label>
+  <label>Observação / base legal<textarea name="notes" rows="4" placeholder="Fonte ou regra operacional"></textarea></label>
+  <div class="form-actions"><a class="btn secondary" href="/feriados">Cancelar</a><button class="btn" type="submit">Salvar feriado</button></div>
+</form>
+<script>
+const scope=document.getElementById('scopeSelect'),uf=document.getElementById('ufSelect'),city=document.getElementById('citySelect'),ufWrap=document.getElementById('ufWrap'),cityWrap=document.getElementById('cityWrap');
+async function loadCities(){
+  city.disabled=true; city.innerHTML='<option value="">Carregando...</option>';
+  if(!uf.value){city.innerHTML='<option value="">Selecione primeiro o estado</option>';return;}
+  try{const r=await fetch('/api/localidades/cidades?uf='+encodeURIComponent(uf.value));const rows=await r.json();city.innerHTML='<option value="">Selecione...</option>'+rows.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');city.disabled=false;}catch(e){city.innerHTML='<option value="">Não foi possível carregar</option>';}
+}
+function applyScope(){
+  const municipal=scope.value==='MUNICIPAL', state=scope.value==='STATE';
+  ufWrap.style.display=(municipal||state)?'block':'none';
+  cityWrap.style.display=municipal?'block':'none';
+  uf.required=municipal||state; city.required=municipal;
+  if(!municipal){city.value='';city.disabled=true;}
+  if(!municipal&&!state){uf.value='';}
+  if(municipal&&uf.value){loadCities();}
+}
+uf.addEventListener('change',()=>{if(scope.value==='MUNICIPAL')loadCities();});scope.addEventListener('change',applyScope);applyScope();
+</script>
+{% endblock %}
