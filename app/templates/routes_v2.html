@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">OPERACIONAL</p><h1>Roteiros</h1><p class="muted">Roteiros criados diretamente no QS, com vigência e histórico. Nenhuma atualização apaga o mês anterior.</p></div><a class="btn" href="/roteiros/novo">+ Novo roteiro</a></div>
+<div class="card filter-card"><form class="filter-form" method="get"><label>Buscar colaborador<input name="q" value="{{ q }}" placeholder="Nome do colaborador"></label><button class="btn" type="submit">Buscar</button><a class="btn secondary" href="/roteiros">Limpar</a></form></div>
+<div class="card table-card section"><table><thead><tr><th>Colaborador</th><th>Vigência</th><th>PDVs / dias</th><th>Origem</th><th>Status</th><th></th></tr></thead><tbody>
+{% for r in rows %}{% set e=employees.get(r.employee_id) %}<tr><td><strong>{{ e.name if e else 'Colaborador não encontrado' }}</strong>{% if e %}<div class="subtle">{{ e.work_city or '—' }}/{{ e.work_state or '—' }}</div>{% endif %}</td><td>{{ r.valid_from.strftime('%d/%m/%Y') }} → {{ r.valid_to.strftime('%d/%m/%Y') if r.valid_to else 'vigente' }}</td><td><strong>{{ stop_counts.get(r.id,0) }}</strong> parada(s)</td><td>{{ r.source }}</td><td><span class="tag {% if r.status=='ATIVO' %}blue{% endif %}">{{ r.status }}</span></td><td><a class="plain-link" href="/roteiros/{{ r.id }}">Abrir roteiro →</a></td></tr>{% else %}<tr><td colspan="6" class="empty">Nenhum roteiro nativo criado ainda.</td></tr>{% endfor %}
+</tbody></table></div>
+<div class="card section info-card"><strong>Importação do Puzzle é legado</strong><p>Os roteiros antigos continuam disponíveis durante a transição. Novos roteiros podem ser construídos aqui diretamente com os PDVs cadastrados no QS.</p></div>
+{% endblock %}
