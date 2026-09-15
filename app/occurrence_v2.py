@@ -13,9 +13,9 @@ from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, or_
 from sqlalchemy.orm import Mapped, Session, joinedload, mapped_column
 
 from .auth import audit, current_user
+from .calculation_engine import process_period
 from .db import Base, DATA_DIR, get_db
 from .models import Employee, Occurrence, PaymentCalculation, PaymentPeriod, UserAccount
-from .calculation_engine import process_period
 
 
 BASE = Path(__file__).resolve().parent
@@ -44,47 +44,16 @@ class OccurrenceDocument(Base):
 
 
 EVENT_CONFIG = {
-    "FÉRIAS": {
-        "label": "Férias",
-        "icon": "☀",
-        "impact": "REMOVE_DAY",
-        "help": "Retira VT e alimentação dos dias de férias.",
-    },
-    "FALTA": {
-        "label": "Falta",
-        "icon": "!",
-        "impact": "BLOCK",
-        "help": "Registre se foi integral ou parcial. O impacto financeiro fica em conferência.",
-    },
-    "ATESTADO": {
-        "label": "Atestado",
-        "icon": "+",
-        "impact": "BLOCK",
-        "help": "Registre o período e anexe o documento quando disponível.",
-    },
-    "DECLARAÇÃO": {
-        "label": "Declaração",
-        "icon": "▤",
-        "impact": "BLOCK",
-        "help": "Registre a data/período e anexe o comprovante quando houver.",
-    },
-    "LICENÇA": {
-        "label": "Licença",
-        "icon": "▣",
-        "impact": "BLOCK",
-        "help": "Evento de RH. Fica visível no calendário e segue para conferência.",
-    },
-    "AFASTAMENTO": {
-        "label": "Afastamento",
-        "icon": "◷",
-        "impact": "BLOCK",
-        "help": "Evento de RH. Fica visível no calendário e segue para conferência.",
-    },
+    "FÉRIAS": {"label": "Férias", "icon": "☀", "impact": "REMOVE_DAY", "help": "Retira VT e alimentação dos dias de férias."},
+    "FALTA": {"label": "Falta", "icon": "!", "impact": "BLOCK", "help": "Registre se foi integral ou parcial. O impacto financeiro fica em conferência."},
+    "ATESTADO": {"label": "Atestado", "icon": "+", "impact": "BLOCK", "help": "Registre o período e anexe o documento quando disponível."},
+    "DECLARAÇÃO": {"label": "Declaração", "icon": "▤", "impact": "BLOCK", "help": "Registre a data/período e anexe o comprovante quando houver."},
+    "LICENÇA": {"label": "Licença", "icon": "▣", "impact": "BLOCK", "help": "Evento de RH. Fica visível no calendário e segue para conferência."},
+    "AFASTAMENTO": {"label": "Afastamento", "icon": "◷", "impact": "BLOCK", "help": "Evento de RH. Fica visível no calendário e segue para conferência."},
 }
-
 AJUDA_TYPES = ["FÉRIAS", "FALTA", "ATESTADO", "DECLARAÇÃO"]
 RH_TYPES = ["FÉRIAS", "FALTA", "ATESTADO", "DECLARAÇÃO", "LICENÇA", "AFASTAMENTO"]
-ALL_TYPES = list(EVENT_CONFIG.keys())
+ALL_TYPES = list(EVENT_CONFIG)
 
 
 def _department_code(user: UserAccount | None) -> str:
@@ -121,10 +90,8 @@ def _viewer(request: Request, db: Session) -> UserAccount:
 
 
 def _safe_return_to(value: str | None, fallback: str) -> str:
-    raw = (value or "").strip()
-    if raw.startswith("/") and not raw.startswith("//") and "://" not in raw:
-        return raw
-    return fallback
+    value = (value or "").strip()
+    return value if value.startswith("/") and not value.startswith("//") and "://" not in value else fallback
 
 
 def _parse_date(raw) -> date | None:
@@ -157,32 +124,28 @@ def _sanitize_original_name(filename: str | None) -> str:
 async def _save_document(db: Session, occurrence: Occurrence, user: UserAccount, upload) -> OccurrenceDocument | None:
     if not upload or not getattr(upload, "filename", None):
         return None
-
     original_name = _sanitize_original_name(upload.filename)
     extension = Path(original_name).suffix.lower()
     if extension not in ALLOWED_DOCUMENT_EXTENSIONS:
-        raise ValueError("Formato de documento não permitido. Use PDF, JPG, JPEG ou PNG.")
-
+        raise ValueError("Formato não permitido")
     content = await upload.read()
     if not content:
-        raise ValueError("O documento enviado está vazio.")
+        raise ValueError("Arquivo vazio")
     if len(content) > MAX_DOCUMENT_BYTES:
-        raise ValueError("O documento ultrapassa o limite de 10 MB.")
+        raise ValueError("Arquivo maior que 10 MB")
 
-    folder = DOCUMENT_ROOT / f"{occurrence.start_date.year if occurrence.start_date else date.today().year:04d}" / f"{occurrence.start_date.month if occurrence.start_date else date.today().month:02d}"
+    ref_date = occurrence.start_date or date.today()
+    folder = DOCUMENT_ROOT / f"{ref_date.year:04d}" / f"{ref_date.month:02d}"
     folder.mkdir(parents=True, exist_ok=True)
     stored_name = f"{uuid.uuid4().hex}{extension}"
     path = folder / stored_name
     path.write_bytes(content)
-
-    relative_path = path.relative_to(DATA_DIR).as_posix()
-    mime_type = getattr(upload, "content_type", None) or mimetypes.guess_type(original_name)[0]
     document = OccurrenceDocument(
         occurrence_id=occurrence.id,
         original_name=original_name,
         stored_name=stored_name,
-        relative_path=relative_path,
-        mime_type=mime_type,
+        relative_path=path.relative_to(DATA_DIR).as_posix(),
+        mime_type=getattr(upload, "content_type", None) or mimetypes.guess_type(original_name)[0],
         size_bytes=len(content),
         status="RECEBIDO",
         created_by_user_id=user.id,
@@ -203,13 +166,13 @@ def occurrences_v2(request: Request, q: str = "", tipo: str = "", status: str = 
     if status:
         query = query.filter(Occurrence.status == status)
     rows = query.order_by(Occurrence.id.desc()).limit(500).all()
-    ids = [row.id for row in rows]
     docs_by_occurrence: dict[int, list[OccurrenceDocument]] = {}
+    ids = [row.id for row in rows]
     if ids:
         for doc in db.query(OccurrenceDocument).filter(OccurrenceDocument.occurrence_id.in_(ids)).order_by(OccurrenceDocument.created_at.desc()).all():
             docs_by_occurrence.setdefault(doc.occurrence_id, []).append(doc)
     types = [x[0] for x in db.query(Occurrence.kind).distinct().order_by(Occurrence.kind).all()]
-    return templates.TemplateResponse("occurrences.html", {
+    return templates.TemplateResponse("occurrences_v2.html", {
         "request": request,
         "rows": rows,
         "q": q,
@@ -226,8 +189,8 @@ def occurrences_v2(request: Request, q: str = "", tipo: str = "", status: str = 
 def occurrence_new_v2(request: Request, employee_id: int | None = None, return_to: str | None = None, db: Session = Depends(get_db)):
     user = _editor(request, db)
     employees = db.query(Employee).filter(Employee.active == True, Employee.in_scope == True).order_by(Employee.name).all()
-    allowed = _allowed_types(user)
     fallback = f"/colaboradores/{employee_id}" if employee_id else "/ocorrencias"
+    allowed = _allowed_types(user)
     return templates.TemplateResponse("occurrence_new_v2.html", {
         "request": request,
         "employees": employees,
@@ -250,10 +213,8 @@ async def occurrence_create_v2(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/ocorrencias/nova?erro=colaborador", status_code=303)
 
     kind = (form.get("kind") or "").strip().upper()
-    allowed = _allowed_types(user)
-    if kind not in allowed:
+    if kind not in _allowed_types(user):
         raise HTTPException(status_code=403, detail="Tipo de ocorrência não permitido para este usuário.")
-
     start = _parse_date(form.get("start_date"))
     end = _parse_date(form.get("end_date")) or start
     if not start or not end or end < start:
@@ -273,7 +234,6 @@ async def occurrence_create_v2(request: Request, db: Session = Depends(get_db)):
         else:
             detail = "INTEGRAL"
 
-    config = EVENT_CONFIG[kind]
     stamp = datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
     occurrence = Occurrence(
         source_key=f"MANUAL_V2:{employee.id}:{stamp}",
@@ -282,7 +242,7 @@ async def occurrence_create_v2(request: Request, db: Session = Depends(get_db)):
         kind=kind,
         start_date=start,
         end_date=end,
-        impact_mode=config["impact"],
+        impact_mode=EVENT_CONFIG[kind]["impact"],
         quantity_delta=None,
         quantity_original=detail,
         notes=(form.get("notes") or "").strip() or None,
@@ -291,28 +251,17 @@ async def occurrence_create_v2(request: Request, db: Session = Depends(get_db)):
     )
     db.add(occurrence)
     db.flush()
-
-    document = None
     try:
         document = await _save_document(db, occurrence, user, form.get("document"))
-    except ValueError as exc:
+    except ValueError:
         db.rollback()
-        return RedirectResponse(url=f"/ocorrencias/nova?employee_id={employee.id}&erro=documento&msg={str(exc)[:80]}", status_code=303)
+        return RedirectResponse(url=f"/ocorrencias/nova?employee_id={employee.id}&erro=documento", status_code=303)
 
-    audit(
-        db,
-        user,
-        "CRIAR_OCORRENCIA_V2",
-        "OCORRENCIA",
-        occurrence.id,
-        f"{kind} registrada para {employee.name}" + (" com documento" if document else ""),
-    )
+    audit(db, user, "CRIAR_OCORRENCIA_V2", "OCORRENCIA", occurrence.id, f"{kind} registrada para {employee.name}" + (" com documento" if document else ""))
     db.commit()
     _reprocess_open_periods(db, start, end)
-
     fallback = f"/colaboradores/{employee.id}?occurrence_saved=1"
-    destination = _safe_return_to(form.get("return_to"), fallback)
-    return RedirectResponse(url=destination, status_code=303)
+    return RedirectResponse(url=_safe_return_to(form.get("return_to"), fallback), status_code=303)
 
 
 @router.post("/ocorrencias/{occurrence_id}/documentos")
@@ -325,7 +274,7 @@ async def occurrence_add_document(occurrence_id: int, request: Request, db: Sess
     try:
         document = await _save_document(db, row, user, form.get("document"))
         if not document:
-            raise ValueError("Selecione um documento.")
+            raise ValueError("Selecione um documento")
     except ValueError:
         db.rollback()
         return RedirectResponse(url="/ocorrencias?erro=documento", status_code=303)
@@ -369,25 +318,13 @@ def occurrence_cancel_v2(occurrence_id: int, request: Request, db: Session = Dep
 
 
 def install_occurrence_v2() -> None:
-    """Substitui as rotas legadas de ocorrências sem exigir uma reescrita do main.py.
-
-    A V0.9.3 mantém o main legado temporariamente para reduzir risco. No startup,
-    removemos somente as rotas antigas de ocorrência e registramos as rotas V2.
-    """
+    """Substitui somente as rotas legadas de ocorrência durante a migração V0.9.3."""
     from . import main as main_module
 
     app = main_module.app
     if getattr(app.state, "occurrence_v2_installed", False):
         return
-
-    legacy_paths = {
-        "/ocorrencias",
-        "/ocorrencias/nova",
-        "/ocorrencias/{occurrence_id}/excluir",
-    }
-    app.router.routes[:] = [
-        route for route in app.router.routes
-        if getattr(route, "path", None) not in legacy_paths
-    ]
+    legacy_paths = {"/ocorrencias", "/ocorrencias/nova", "/ocorrencias/{occurrence_id}/excluir"}
+    app.router.routes[:] = [route for route in app.router.routes if getattr(route, "path", None) not in legacy_paths]
     app.include_router(router)
     app.state.occurrence_v2_installed = True
