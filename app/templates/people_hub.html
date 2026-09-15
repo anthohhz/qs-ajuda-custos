@@ -1,15 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="page-head">
-  <div><p class="eyebrow">PESSOAS</p><h1>Pessoas</h1><p class="muted">Consulte o perfil individual, calendário e eventos que afetam cada quinzena.</p></div>
-  {% if request.state.user.role in ['ADMIN','BENEFICIOS'] %}<a class="btn" href="/ocorrencias/nova">+ Registrar ocorrência</a>{% endif %}
+  <div><p class="eyebrow">PESSOAS</p><h1>Pessoas</h1><p class="muted">Consulte cadastro, calendário e ocorrências de cada colaborador sem misturar regras de transporte com eventos pessoais.</p></div>
+  {% if request.state.user.role in ['ADMIN','BENEFICIOS'] or (request.state.user.department and request.state.user.department.code in ['SISTEMAS','AJUDA_CUSTOS','RH']) %}<a class="btn" href="/ocorrencias/nova?return_to=/pessoas">+ Registrar ocorrência</a>{% endif %}
 </div>
 <div class="hub-grid">
-  <a class="card hub-card" href="/colaboradores"><span class="mini-label">CADASTRO</span><strong>{{ employees }}</strong><h2>Colaboradores</h2><p>Consultar perfil, cidade, carga horária, modal, ocorrências e memória de cálculo.</p><span class="hub-action">Abrir colaboradores →</span></a>
-  <a class="card hub-card" href="/ocorrencias"><span class="mini-label">EVENTOS</span><strong>{{ occurrences }}</strong><h2>Ocorrências</h2><p>Férias, faltas, afastamentos, passagens adicionais e exceções de rota.</p><span class="hub-action">Abrir ocorrências →</span></a>
+  <a class="card hub-card" href="/colaboradores"><span class="mini-label">CADASTRO</span><strong>{{ employees }}</strong><h2>Colaboradores</h2><p>Perfil, empresa, cidade, jornada, calendário, ocorrências e histórico financeiro.</p><span class="hub-action">Abrir colaboradores →</span></a>
+  <a class="card hub-card" href="/ocorrencias"><span class="mini-label">EVENTOS</span><strong>{{ occurrences }}</strong><h2>Ocorrências</h2><p>Férias, faltas, atestados, declarações e eventos de RH conforme a permissão do usuário.</p><span class="hub-action">Abrir ocorrências →</span></a>
 </div>
-<div class="kpi-grid section">
-  <div class="card kpi"><span>Passagens adicionais</span><strong>{{ extra_passages }}</strong><small>somam quantidade de VT e impactam o Total Conhecido</small></div>
-  <div class="card kpi"><span>Trechos sem VT</span><strong>{{ nearby_store_rules }}</strong><small>uso manual provisório para lojas próximas; automação virá do Puzzle</small></div>
-</div>
+<div class="card section info-card"><strong>Transporte saiu de Pessoas</strong><p>Passagens adicionais, trechos entre lojas e regra de proximidade de PDVs serão tratados no módulo Operacional/Roteiros. Pessoas fica focado no colaborador e em seu histórico.</p></div>
 {% endblock %}
