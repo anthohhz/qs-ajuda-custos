@@ -9,6 +9,7 @@ from .models import (
 )
 from .occurrence_v2 import OccurrenceDocument, install_occurrence_v2
 from .locality_v2 import City, normalize_city, install_locality_v2
+from .route_v2 import EmployeeRoute, RouteStop, install_route_v2
 from .seed_data import PENDING_DECISIONS
 from .operational_seed_data import EMPLOYEE_SNAPSHOT, BASE_TARIFFS, HOLIDAY_SNAPSHOT, HISTORICAL_OCCURRENCES
 from .calculation_engine import norm_text, canonical_city
@@ -58,7 +59,6 @@ def ensure_periods(db, year: int, month: int, cutoff: int):
         if not row:
             db.add(PaymentPeriod(year=year, month=month, half=half, start_date=start, end_date=end))
             continue
-
         if row.status != "closed" and (row.start_date != start or row.end_date != end):
             row.start_date = start
             row.end_date = end
@@ -70,12 +70,10 @@ def _seed_corporate_structure(db):
         row = db.query(Department).filter(Department.code == code).first()
         if not row:
             db.add(Department(code=code, name=name, active=True))
-
     for code, name in QS_COMPANIES:
         row = db.query(Company).filter(Company.code == code).first()
         if not row:
             db.add(Company(code=code, name=name, active=True))
-
     db.flush()
 
 
@@ -125,7 +123,6 @@ def _seed_holiday_rules_2026(db):
                 category="FERIADO", affects_calculation=True, source="OFICIAL_2026",
                 source_ref=FEDERAL_SOURCE, active=True,
             ))
-
     for date_text, name in FEDERAL_OPTIONAL_DAYS_2026:
         key = f"OFICIAL2026:OPTIONAL:{date_text}:{norm_text(name)}"
         if not db.query(HolidayRule).filter(HolidayRule.source_key == key).first():
@@ -135,7 +132,6 @@ def _seed_holiday_rules_2026(db):
                 source_ref=FEDERAL_SOURCE,
                 notes="Visível no calendário para conferência; não altera o cálculo da ajuda de custos por padrão.", active=True,
             ))
-
     for uf, holidays in STATE_HOLIDAYS_2026.items():
         for date_text, name, notes in holidays:
             key = f"OFICIAL2026:STATE:{uf}:{date_text}:{norm_text(name)}"
@@ -145,9 +141,7 @@ def _seed_holiday_rules_2026(db):
                     category="FERIADO", affects_calculation=True, source="OFICIAL_2026",
                     source_ref=STATE_SOURCE, notes=notes, active=True,
                 ))
-
     db.flush()
-
     for old in db.query(Holiday).all():
         if not old.uf or not old.region:
             continue
@@ -164,24 +158,14 @@ def _seed_holiday_rules_2026(db):
 
 
 def _sync_operational_cities(db):
-    """Monta o catálogo de cidades a partir das fontes operacionais já existentes.
-
-    É idempotente e não altera a grafia de uma cidade já cadastrada. O catálogo pode
-    futuramente ser enriquecido com a base oficial do IBGE sem quebrar os vínculos.
-    """
+    """Monta o catálogo de cidades a partir das fontes operacionais já existentes."""
     candidates = []
-
     for employee in db.query(Employee).filter(Employee.work_city != None, Employee.work_state != None).all():
         candidates.append((employee.work_state, employee.work_city, "COLABORADORES"))
-
     for tariff in db.query(BaseTariff).filter(BaseTariff.city != None, BaseTariff.uf != None).all():
         candidates.append((tariff.uf, tariff.city, "TARIFAS"))
-
-    for holiday in db.query(HolidayRule).filter(
-        HolidayRule.scope_type == "MUNICIPAL", HolidayRule.city != None, HolidayRule.uf != None
-    ).all():
+    for holiday in db.query(HolidayRule).filter(HolidayRule.scope_type == "MUNICIPAL", HolidayRule.city != None, HolidayRule.uf != None).all():
         candidates.append((holiday.uf, holiday.city, "FERIADOS"))
-
     for route in db.query(PromoterRoute).filter(PromoterRoute.city != None, PromoterRoute.uf != None).all():
         candidates.append((route.uf, route.city, "ROTEIROS_LEGADO"))
 
@@ -199,7 +183,6 @@ def _sync_operational_cities(db):
         exists = db.query(City).filter(City.uf == uf, City.name_norm == name_norm).first()
         if not exists:
             db.add(City(uf=uf, name=city, name_norm=name_norm, active=True, source=source))
-
     db.flush()
 
 
@@ -207,26 +190,10 @@ def _seed_policies(db):
     if db.query(CalculationPolicy).count() > 0:
         return
     policies = [
-        {
-            "policy_key": "PROMOTOR_44H", "label": "Promotor · 44h", "workload_key": "44H",
-            "weekdays": "0,1,2,3,4,5", "vt_per_day": 2.0, "approved": False,
-            "notes": "Sugestão inicial para simulação: segunda a sábado e 2 VT/dia. Homologar antes de usar financeiramente.",
-        },
-        {
-            "policy_key": "PROMOTOR_40H", "label": "Promotor · 40h", "workload_key": "40H",
-            "weekdays": "0,1,2,3,4", "vt_per_day": 2.0, "approved": False,
-            "notes": "Sugestão inicial para simulação: segunda a sexta e 2 VT/dia. Homologar antes de usar financeiramente.",
-        },
-        {
-            "policy_key": "PROMOTOR_22H", "label": "Promotor · 22h", "workload_key": "22H",
-            "weekdays": "0,1,2,3,4", "vt_per_day": 2.0, "approved": False,
-            "notes": "Sugestão inicial para simulação: segunda a sexta e 2 VT/dia. Ajustar conforme a regra real da QSPROMO.",
-        },
-        {
-            "policy_key": "PROMOTOR_MEI_6H", "label": "Promotor MEI · 6h", "workload_key": "6H_MEI",
-            "weekdays": "0,1,2,3,4,5", "vt_per_day": 2.0, "approved": False,
-            "notes": "A carga de 6h foi informada pela QSPROMO. Dias da semana e quantidade de VT são apenas sugestão para simulação e precisam ser homologados.",
-        },
+        {"policy_key": "PROMOTOR_44H", "label": "Promotor · 44h", "workload_key": "44H", "weekdays": "0,1,2,3,4,5", "vt_per_day": 2.0, "approved": False, "notes": "Sugestão inicial para simulação: segunda a sábado e 2 VT/dia. Homologar antes de usar financeiramente."},
+        {"policy_key": "PROMOTOR_40H", "label": "Promotor · 40h", "workload_key": "40H", "weekdays": "0,1,2,3,4", "vt_per_day": 2.0, "approved": False, "notes": "Sugestão inicial para simulação: segunda a sexta e 2 VT/dia. Homologar antes de usar financeiramente."},
+        {"policy_key": "PROMOTOR_22H", "label": "Promotor · 22h", "workload_key": "22H", "weekdays": "0,1,2,3,4", "vt_per_day": 2.0, "approved": False, "notes": "Sugestão inicial para simulação: segunda a sexta e 2 VT/dia. Ajustar conforme a regra real da QSPROMO."},
+        {"policy_key": "PROMOTOR_MEI_6H", "label": "Promotor MEI · 6h", "workload_key": "6H_MEI", "weekdays": "0,1,2,3,4,5", "vt_per_day": 2.0, "approved": False, "notes": "A carga de 6h foi informada pela QSPROMO. Dias da semana e quantidade de VT são apenas sugestão para simulação e precisam ser homologados."},
     ]
     for row in policies:
         db.add(CalculationPolicy(eligible_group="PROMOTOR_VT", **row))
@@ -247,7 +214,6 @@ def _seed_occurrences(db):
     for e in employees:
         for key in _name_variants(e.name):
             by_name.setdefault(key, []).append(e)
-
     for row in HISTORICAL_OCCURRENCES:
         matches = []
         for key in _name_variants(row.get("employee_name") or ""):
@@ -293,18 +259,12 @@ def _ensure_sqlite_migrations():
             for name, ddl in additions.items():
                 if name not in employee_cols:
                     conn.execute(text(f"ALTER TABLE employees ADD COLUMN {name} {ddl}"))
-
-            conn.execute(text(
-                "UPDATE employees SET in_scope = 0 "
-                "WHERE benefit_group = 'ADMIN_OUTROS' AND (in_scope IS NULL OR in_scope = 1)"
-            ))
+            conn.execute(text("UPDATE employees SET in_scope = 0 WHERE benefit_group = 'ADMIN_OUTROS' AND (in_scope IS NULL OR in_scope = 1)"))
 
         user_cols = columns(conn, "user_accounts")
         if user_cols:
             if "department_id" not in user_cols:
-                conn.execute(text(
-                    "ALTER TABLE user_accounts ADD COLUMN department_id INTEGER REFERENCES departments(id)"
-                ))
+                conn.execute(text("ALTER TABLE user_accounts ADD COLUMN department_id INTEGER REFERENCES departments(id)"))
             if "position" not in user_cols:
                 conn.execute(text("ALTER TABLE user_accounts ADD COLUMN position VARCHAR(40)"))
 
@@ -316,7 +276,6 @@ def seed():
     db = SessionLocal()
     try:
         _seed_corporate_structure(db)
-
         if db.query(HomologationDecision).count() == 0:
             for row in PENDING_DECISIONS:
                 db.add(HomologationDecision(**row, status="pending"))
@@ -324,11 +283,9 @@ def seed():
         config = db.get(PaymentCycleConfig, 1)
         if not config:
             config = PaymentCycleConfig(id=1, first_half_end_day=QS_FIRST_HALF_END_DAY)
-            db.add(config)
-            db.flush()
+            db.add(config); db.flush()
         elif config.first_half_end_day != QS_FIRST_HALF_END_DAY:
-            config.first_half_end_day = QS_FIRST_HALF_END_DAY
-            db.flush()
+            config.first_half_end_day = QS_FIRST_HALF_END_DAY; db.flush()
 
         _seed_employees(db)
         _seed_tariffs(db)
@@ -346,3 +303,4 @@ def seed():
 
     install_occurrence_v2()
     install_locality_v2()
+    install_route_v2()
