@@ -2,7 +2,7 @@
 {% block content %}
 <div class="page-head">
   <div><p class="eyebrow">PESSOAS</p><h1>Pessoas</h1><p class="muted">Consulte cadastro, calendário e ocorrências de cada colaborador sem misturar regras de transporte com eventos pessoais.</p></div>
-  {% if request.state.user.role in ['ADMIN','BENEFICIOS'] or (request.state.user.department and request.state.user.department.code in ['SISTEMAS','AJUDA_CUSTOS','RH']) %}<a class="btn" href="/ocorrencias/nova?return_to=/pessoas">+ Registrar ocorrência</a>{% endif %}
+  {% if request.state.user.role in ['ADMIN','BENEFICIOS'] %}<a class="btn" href="/ocorrencias/nova?return_to=/pessoas">+ Registrar ocorrência</a>{% endif %}
 </div>
 <div class="hub-grid">
   <a class="card hub-card" href="/colaboradores"><span class="mini-label">CADASTRO</span><strong>{{ employees }}</strong><h2>Colaboradores</h2><p>Perfil, empresa, cidade, jornada, calendário, ocorrências e histórico financeiro.</p><span class="hub-action">Abrir colaboradores →</span></a>
