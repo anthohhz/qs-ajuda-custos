@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/tarifas">← Tarifas</a>
+<div class="page-head"><div><p class="eyebrow">NOVA TARIFA</p><h1>Adicionar passagem</h1><p class="muted">Selecione UF e cidade do catálogo do QS. A vigência preserva o histórico quando o valor muda.</p></div></div>
+{% if request.query_params.get('erro') %}<div class="notice error-notice">{% if request.query_params.get('erro')=='cidade' %}Selecione uma cidade válida para a UF escolhida.{% else %}Confira a cidade, UF e o valor informado.{% endif %}</div>{% endif %}
+<form class="card form-wide" method="post" action="/tarifas/nova">
+  <div class="form-grid">
+    <label>Estado<select name="uf" id="ufSelect" required><option value="">Selecione...</option>{% for code,name in ufs.items() %}<option value="{{ code }}">{{ code }} · {{ name }}</option>{% endfor %}</select></label>
+    <label>Cidade<select name="city_id" id="citySelect" required disabled><option value="">Selecione primeiro o estado</option></select><span class="field-help">A cidade vem do cadastro mestre de localidades.</span></label>
+  </div>
+  <div class="form-grid"><label>Modal<select name="modal"><option value="ONIBUS">Ônibus</option><option value="MOTO">Moto / moto táxi</option><option value="OUTRO">Outro</option></select></label><label>Valor<input name="amount" inputmode="decimal" required placeholder="Ex.: 5,90"></label></div>
+  <label>Vigência inicial<input type="date" name="valid_from"><span class="field-help">Informe quando o novo valor passou a valer. Tarifas anteriores permanecem no histórico.</span></label>
+  <label>Fonte / observação<textarea name="notes" rows="4" placeholder="Ex.: tarifa municipal informada pelo setor / fonte oficial"></textarea></label>
+  <div class="form-actions"><a class="btn secondary" href="/tarifas">Cancelar</a><button class="btn" type="submit">Salvar tarifa</button></div>
+</form>
+<script>
+const uf=document.getElementById('ufSelect'), city=document.getElementById('citySelect');
+async function loadCities(){
+  city.disabled=true; city.innerHTML='<option value="">Carregando...</option>';
+  if(!uf.value){city.innerHTML='<option value="">Selecione primeiro o estado</option>';return;}
+  try{
+    const r=await fetch('/api/localidades/cidades?uf='+encodeURIComponent(uf.value));
+    const rows=await r.json();
+    city.innerHTML='<option value="">Selecione...</option>'+rows.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+    city.disabled=false;
+  }catch(e){city.innerHTML='<option value="">Não foi possível carregar</option>';}
+}
+uf.addEventListener('change',loadCities);
+</script>
+{% endblock %}
