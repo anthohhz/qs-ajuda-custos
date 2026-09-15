@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/pessoas">← Pessoas</a>
+<div class="page-head">
+  <div><p class="eyebrow">PESSOAS · OCORRÊNCIAS</p><h1>Ocorrências</h1><p class="muted">Histórico de férias, faltas, atestados, declarações e eventos de RH. O usuário não precisa definir regras internas do motor.</p></div>
+  {% if can_edit_occurrence %}<a class="btn" href="/ocorrencias/nova?return_to=/ocorrencias">+ Registrar ocorrência</a>{% endif %}
+</div>
+
+{% if request.query_params.get('documento') %}<div class="notice">Documento anexado com sucesso.</div>{% endif %}
+{% if request.query_params.get('erro') %}<div class="notice error-notice">Não foi possível concluir a operação. Confira os dados e tente novamente.</div>{% endif %}
+
+<div class="card filter-card">
+  <form class="filter-form" method="get">
+    <label>Buscar<input name="q" value="{{ q }}" placeholder="Colaborador ou observação"></label>
+    <label>Tipo<select name="tipo"><option value="">Todos</option>{% for t in types %}<option value="{{ t }}" {% if tipo==t %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></label>
+    <label>Status<select name="status"><option value="">Todos</option><option value="ATIVA" {% if status_filter=='ATIVA' %}selected{% endif %}>Ativa</option><option value="REVISAR" {% if status_filter=='REVISAR' %}selected{% endif %}>Revisar</option><option value="CANCELADA" {% if status_filter=='CANCELADA' %}selected{% endif %}>Cancelada</option></select></label>
+    <button class="btn" type="submit">Filtrar</button><a class="btn secondary" href="/ocorrencias">Limpar</a>
+  </form>
+</div>
+
+<div class="card table-card section"><table><thead><tr><th>Colaborador</th><th>Tipo</th><th>Período</th><th>Detalhe</th><th>Documento</th><th>Status</th><th></th></tr></thead><tbody>
+{% for o in rows %}
+<tr class="{% if o.status=='CANCELADA' %}muted-row{% endif %}">
+  <td>{% if o.employee %}<a class="plain-link" href="/colaboradores/{{ o.employee.id }}">{{ o.employee.name }}</a>{% else %}<strong>{{ o.employee_name_text or 'Não vinculado' }}</strong>{% endif %}</td>
+  <td><strong>{{ o.kind }}</strong>{% if o.source!='MANUAL' %}<div class="subtle">Histórico migrado</div>{% endif %}</td>
+  <td>{{ o.start_date|brdate }}{% if o.end_date and o.end_date!=o.start_date %} → {{ o.end_date|brdate }}{% endif %}</td>
+  <td>{% if o.quantity_original %}<div>{{ o.quantity_original }}</div>{% endif %}<div class="subtle">{{ o.notes or '—' }}</div>{% if o.kind=='FÉRIAS' %}<div class="subtle">VT e alimentação retirados no período.</div>{% elif o.impact_mode=='BLOCK' %}<div class="subtle">Impacto financeiro em conferência.</div>{% endif %}</td>
+  <td>
+    {% set docs = docs_by_occurrence.get(o.id, []) %}
+    {% if docs %}
+      {% for d in docs %}<a class="plain-link" href="/ocorrencias/{{ o.id }}/documentos/{{ d.id }}">📎 {{ d.original_name }}</a>{% if not loop.last %}<br>{% endif %}{% endfor %}
+    {% elif o.kind in ['ATESTADO','DECLARAÇÃO'] %}
+      <span class="subtle">Sem documento</span>
+      {% if can_edit_occurrence and o.status!='CANCELADA' %}
+      <form method="post" action="/ocorrencias/{{ o.id }}/documentos" enctype="multipart/form-data" style="margin-top:8px;">
+        <input type="hidden" name="return_to" value="/ocorrencias">
+        <input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png" required style="max-width:190px;">
+        <button class="link-button" type="submit">Anexar</button>
+      </form>
+      {% endif %}
+    {% else %}—{% endif %}
+  </td>
+  <td><span class="tag {% if o.status=='ATIVA' %}blue{% elif o.status=='CANCELADA' %}amber{% endif %}">{{ o.status }}</span></td>
+  <td>{% if can_edit_occurrence and o.source=='MANUAL' and o.status!='CANCELADA' %}<form method="post" action="/ocorrencias/{{ o.id }}/excluir"><button class="link-button" type="submit">Cancelar</button></form>{% endif %}</td>
+</tr>
+{% else %}<tr><td colspan="7" class="empty">Nenhuma ocorrência encontrada.</td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}
