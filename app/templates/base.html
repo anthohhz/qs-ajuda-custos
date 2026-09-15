@@ -16,9 +16,10 @@
     <nav class="main-nav">
       <a class="{% if request.url.path == '/' %}active{% endif %}" href="/">Início</a>
       <a class="{% if request.url.path.startswith('/pessoas') or request.url.path.startswith('/colaboradores') or request.url.path.startswith('/ocorrencias') %}active{% endif %}" href="/pessoas">Pessoas</a>
+      <a class="{% if request.url.path.startswith('/roteiros') %}active{% endif %}" href="/roteiros">Roteiros</a>
+      <a class="{% if request.url.path.startswith('/pdvs') %}active{% endif %}" href="/pdvs">PDV'S</a>
       <a class="{% if request.url.path.startswith('/regras-operacionais') or request.url.path.startswith('/tarifas') or request.url.path.startswith('/feriados') %}active{% endif %}" href="/regras-operacionais">Regras</a>
       <a class="{% if request.url.path.startswith('/quinzenas') or request.url.path.startswith('/calculos') or request.url.path.startswith('/ajustes') %}active{% endif %}" href="/quinzenas">Quinzenas</a>
-      <a class="{% if request.url.path.startswith('/pdvs') %}active{% endif %}" href="/pdvs">PDV'S</a>
       <a class="{% if request.url.path.startswith('/inteligencia') %}active{% endif %}" href="/inteligencia">Inteligência</a>
     </nav>
     {% if request.state.user and request.state.user.role == 'ADMIN' %}
