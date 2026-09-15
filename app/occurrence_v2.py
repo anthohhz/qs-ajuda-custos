@@ -228,7 +228,7 @@ def occurrence_new_v2(request: Request, employee_id: int | None = None, return_t
     employees = db.query(Employee).filter(Employee.active == True, Employee.in_scope == True).order_by(Employee.name).all()
     allowed = _allowed_types(user)
     fallback = f"/colaboradores/{employee_id}" if employee_id else "/ocorrencias"
-    return templates.TemplateResponse("occurrence_new.html", {
+    return templates.TemplateResponse("occurrence_new_v2.html", {
         "request": request,
         "employees": employees,
         "selected_employee_id": employee_id,
