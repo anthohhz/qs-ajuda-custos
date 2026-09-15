@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Setores</h1><p class="muted">Setores internos controlam contexto e permissões. Sistemas, Ajuda de Custos, RH e Comercial já são cadastrados automaticamente.</p></div></div>
+{% if request.query_params.get('saved') %}<div class="notice">Setor criado.</div>{% endif %}{% if request.query_params.get('erro') %}<div class="notice error-notice">Não foi possível criar o setor.</div>{% endif %}
+<div class="two"><section class="card"><h2>Novo setor</h2><form method="post" action="/admin/setores/novo"><label>Código<input name="code" maxlength="40" required placeholder="Ex.: FINANCEIRO"></label><label>Nome<input name="name" required></label><button class="btn" type="submit">Criar setor</button></form></section><section class="card table-card"><table><thead><tr><th>Código</th><th>Setor</th><th>Status</th></tr></thead><tbody>{% for d in rows %}<tr><td><strong>{{ d.code }}</strong></td><td>{{ d.name }}</td><td>{% if d.active %}<span class="status calculated">Ativo</span>{% else %}<span class="status excluded">Inativo</span>{% endif %}</td></tr>{% endfor %}</tbody></table></section></div>
+{% endblock %}
