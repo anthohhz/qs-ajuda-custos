@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .auth import current_user
 from .calculation_engine import canonical_city, norm_text
+from .daily_engine_v093 import build_daily_benefit_preview
 from .db import get_db
 from .models import (
     CalculationLine,
@@ -221,16 +222,26 @@ def _build_calendar(db: Session, employee: Employee, year: int, month: int):
         items = []
         for day in week:
             route = _route_for_day(day, native_routes, native_stops, legacy_routes) if day.month == month else {"source": None, "route": None, "stops": []}
+            day_holidays = holidays.get(day, [])
+            day_occurrences = occurrences.get(day, [])
+            benefit = build_daily_benefit_preview(
+                employee=employee,
+                day=day,
+                route_stops=route["stops"] if day.month == month else [],
+                holidays=day_holidays if day.month == month else [],
+                occurrences=day_occurrences if day.month == month else [],
+            ) if day.month == month else None
             item = {
                 "date": day,
                 "in_month": day.month == month,
                 "today": day == date.today(),
-                "holidays": holidays.get(day, []),
-                "occurrences": occurrences.get(day, []),
+                "holidays": day_holidays,
+                "occurrences": day_occurrences,
                 "route_source": route["source"],
                 "route": route["route"],
                 "route_stops": route["stops"],
                 "calculation_lines": calc_lines.get(day, []),
+                "benefit_preview": benefit,
             }
             if day.month == month:
                 day_lookup[day.isoformat()] = item
