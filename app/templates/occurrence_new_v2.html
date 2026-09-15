@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% block content %}
+<a class="back" href="{{ return_to or '/ocorrencias' }}">← Voltar</a>
+<div class="page-head"><div><p class="eyebrow">PESSOAS · OCORRÊNCIAS</p><h1>Registrar ocorrência</h1><p class="muted">Escolha o que aconteceu. O QS mostra apenas os campos necessários.</p></div></div>
+{% if request.query_params.get('erro') %}<div class="notice error-notice">Confira os dados informados e tente novamente.</div>{% endif %}
+<form class="event-wizard" method="post" action="/ocorrencias/nova" id="eventForm" enctype="multipart/form-data">
+<input type="hidden" name="return_to" value="{{ return_to or '/ocorrencias' }}"><input type="hidden" name="kind" id="kind" required>
+<section class="card"><label>Colaborador<select name="employee_id" required><option value="">Selecione...</option>{% for e in employees %}<option value="{{ e.id }}" {% if selected_employee_id==e.id %}selected{% endif %}>{{ e.name }} · {{ e.work_city or '—' }}/{{ e.work_state or '—' }}</option>{% endfor %}</select></label></section>
+<div class="page-section-title"><div><h2>O que aconteceu?</h2><p class="muted">As opções respeitam o setor e a permissão do usuário.</p></div></div>
+<section class="event-types">{% for code, cfg in event_types %}<button type="button" class="event-type" data-kind="{{ code }}"><span>{{ cfg.icon }}</span><strong>{{ cfg.label }}</strong><small>{{ cfg.help }}</small></button>{% endfor %}</section>
+<section class="card event-details hidden" id="eventDetails">
+<div class="event-selected"><span class="mini-label">EVENTO SELECIONADO</span><strong id="selectedLabel"></strong><p class="muted" id="selectedHelp"></p></div>
+<div class="form-grid"><label>Data inicial<input type="date" name="start_date" required></label><label>Data final<input type="date" name="end_date"><span class="field-help">Para um único dia, deixe vazio ou repita a data inicial.</span></label></div>
+<div id="faltaFields" class="hidden"><div class="form-grid"><label>Tipo de falta<select name="absence_mode" id="absenceMode"><option value="INTEGRAL">Dia inteiro</option><option value="PARCIAL">Parcial</option></select></label></div><div class="form-grid hidden" id="partialTimeFields"><label>De<input type="time" name="start_time"></label><label>Até<input type="time" name="end_time"></label></div><div class="notice" style="margin-top:12px;">A falta será registrada no calendário. O impacto financeiro permanece em conferência porque há regras diferentes por situação e região.</div></div>
+<div id="feriasInfo" class="notice hidden" style="margin-top:12px;">Férias retiram VT e alimentação dos dias correspondentes. O período completo permanece no calendário e no histórico.</div>
+<div id="documentFields" class="hidden" style="margin-top:16px;"><label>Documento / comprovante<input type="file" name="document" accept=".pdf,.jpg,.jpeg,.png"><span class="field-help">PDF, JPG ou PNG · máximo 10 MB. Se ainda não chegou, salve a ocorrência e anexe depois.</span></label></div>
+<label>Observação<textarea name="notes" rows="3" placeholder="Informe somente o necessário para o setor compreender a ocorrência."></textarea></label>
+<div class="form-actions"><a class="btn secondary" href="{{ return_to or '/ocorrencias' }}">Cancelar</a><button class="btn" type="submit">Salvar ocorrência</button></div>
+</section></form>
+<script>
+const buttons=[...document.querySelectorAll('.event-type')],kind=document.getElementById('kind'),details=document.getElementById('eventDetails'),selectedLabel=document.getElementById('selectedLabel'),selectedHelp=document.getElementById('selectedHelp'),faltaFields=document.getElementById('faltaFields'),feriasInfo=document.getElementById('feriasInfo'),documentFields=document.getElementById('documentFields'),absenceMode=document.getElementById('absenceMode'),partialTimeFields=document.getElementById('partialTimeFields');
+function fields(code){faltaFields.classList.toggle('hidden',code!=='FALTA');feriasInfo.classList.toggle('hidden',code!=='FÉRIAS');documentFields.classList.toggle('hidden',!['ATESTADO','DECLARAÇÃO'].includes(code));}
+buttons.forEach(b=>b.addEventListener('click',()=>{buttons.forEach(x=>x.classList.remove('selected'));b.classList.add('selected');kind.value=b.dataset.kind;selectedLabel.textContent=b.querySelector('strong').textContent;selectedHelp.textContent=b.querySelector('small').textContent;fields(kind.value);details.classList.remove('hidden');details.scrollIntoView({behavior:'smooth',block:'nearest'});}));
+absenceMode.addEventListener('change',()=>partialTimeFields.classList.toggle('hidden',absenceMode.value!=='PARCIAL'));
+document.getElementById('eventForm').addEventListener('submit',e=>{if(!kind.value){e.preventDefault();alert('Escolha o tipo de ocorrência.');}});
+</script>
+{% endblock %}
