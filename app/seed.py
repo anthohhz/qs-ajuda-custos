@@ -12,6 +12,7 @@ from .occurrence_v2 import OccurrenceDocument, install_occurrence_v2
 from .locality_v2 import City, normalize_city, install_locality_v2
 from .route_v2 import EmployeeRoute, RouteStop, install_route_v2
 from .admin_v2 import install_admin_v2
+from .calendar_v2 import install_calendar_v2
 from .calculation_engine import norm_text, canonical_city
 from .holiday_2026_data import (
     NATIONAL_HOLIDAYS_2026, FEDERAL_OPTIONAL_DAYS_2026, STATE_HOLIDAYS_2026,
@@ -416,3 +417,4 @@ def seed():
     install_locality_v2()
     install_route_v2()
     install_admin_v2()
+    install_calendar_v2()
