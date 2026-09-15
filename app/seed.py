@@ -7,6 +7,7 @@ from .models import (
     Company, Department, Employee, BaseTariff, Holiday, HolidayRule,
     CalculationPolicy, Occurrence,
 )
+from .occurrence_v2 import OccurrenceDocument, install_occurrence_v2
 from .seed_data import PENDING_DECISIONS
 from .operational_seed_data import EMPLOYEE_SNAPSHOT, BASE_TARIFFS, HOLIDAY_SNAPSHOT, HISTORICAL_OCCURRENCES
 from .calculation_engine import norm_text, canonical_city
@@ -309,3 +310,7 @@ def seed():
         db.commit()
     finally:
         db.close()
+
+    # A V0.9.3 substitui apenas as rotas de ocorrência da V0.9.2 no startup,
+    # mantendo o restante do main legado intacto durante a migração incremental.
+    install_occurrence_v2()
