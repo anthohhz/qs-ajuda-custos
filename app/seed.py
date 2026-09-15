@@ -5,9 +5,10 @@ from .db import Base, engine, SessionLocal
 from .models import (
     HomologationDecision, PaymentCycleConfig, PaymentPeriod,
     Company, Department, Employee, BaseTariff, Holiday, HolidayRule,
-    CalculationPolicy, Occurrence,
+    CalculationPolicy, Occurrence, PromoterRoute,
 )
 from .occurrence_v2 import OccurrenceDocument, install_occurrence_v2
+from .locality_v2 import City, normalize_city, install_locality_v2
 from .seed_data import PENDING_DECISIONS
 from .operational_seed_data import EMPLOYEE_SNAPSHOT, BASE_TARIFFS, HOLIDAY_SNAPSHOT, HISTORICAL_OCCURRENCES
 from .calculation_engine import norm_text, canonical_city
@@ -58,8 +59,6 @@ def ensure_periods(db, year: int, month: int, cutoff: int):
             db.add(PaymentPeriod(year=year, month=month, half=half, start_date=start, end_date=end))
             continue
 
-        # Histórico fechado é imutável. Somente períodos ainda abertos acompanham
-        # uma correção da regra de calendário.
         if row.status != "closed" and (row.start_date != start or row.end_date != end):
             row.start_date = start
             row.end_date = end
@@ -118,7 +117,6 @@ def _seed_holidays(db):
 
 def _seed_holiday_rules_2026(db):
     """Cria a camada operacional de feriados sem alterar o legado migrado."""
-    # Feriados nacionais: um único registro NATIONAL se aplica a todas as UFs.
     for date_text, name in NATIONAL_HOLIDAYS_2026:
         key = f"OFICIAL2026:NATIONAL:{date_text}:{norm_text(name)}"
         if not db.query(HolidayRule).filter(HolidayRule.source_key == key).first():
@@ -128,7 +126,6 @@ def _seed_holiday_rules_2026(db):
                 source_ref=FEDERAL_SOURCE, active=True,
             ))
 
-    # Pontos facultativos federais ficam visíveis, mas nunca retiram dia automaticamente.
     for date_text, name in FEDERAL_OPTIONAL_DAYS_2026:
         key = f"OFICIAL2026:OPTIONAL:{date_text}:{norm_text(name)}"
         if not db.query(HolidayRule).filter(HolidayRule.source_key == key).first():
@@ -151,7 +148,6 @@ def _seed_holiday_rules_2026(db):
 
     db.flush()
 
-    # O histórico municipal que já veio do Excel também entra na nova camada, de forma idempotente.
     for old in db.query(Holiday).all():
         if not old.uf or not old.region:
             continue
@@ -164,6 +160,46 @@ def _seed_holiday_rules_2026(db):
             affects_calculation=(old.status == "OK"), source="MIGRACAO_EXCEL",
             source_ref=f"Calendário histórico migrado · registro {old.legacy_id}", active=True,
         ))
+    db.flush()
+
+
+def _sync_operational_cities(db):
+    """Monta o catálogo de cidades a partir das fontes operacionais já existentes.
+
+    É idempotente e não altera a grafia de uma cidade já cadastrada. O catálogo pode
+    futuramente ser enriquecido com a base oficial do IBGE sem quebrar os vínculos.
+    """
+    candidates = []
+
+    for employee in db.query(Employee).filter(Employee.work_city != None, Employee.work_state != None).all():
+        candidates.append((employee.work_state, employee.work_city, "COLABORADORES"))
+
+    for tariff in db.query(BaseTariff).filter(BaseTariff.city != None, BaseTariff.uf != None).all():
+        candidates.append((tariff.uf, tariff.city, "TARIFAS"))
+
+    for holiday in db.query(HolidayRule).filter(
+        HolidayRule.scope_type == "MUNICIPAL", HolidayRule.city != None, HolidayRule.uf != None
+    ).all():
+        candidates.append((holiday.uf, holiday.city, "FERIADOS"))
+
+    for route in db.query(PromoterRoute).filter(PromoterRoute.city != None, PromoterRoute.uf != None).all():
+        candidates.append((route.uf, route.city, "ROTEIROS_LEGADO"))
+
+    seen = set()
+    for uf_raw, city_raw, source in candidates:
+        uf = str(uf_raw or "").strip().upper()
+        city = str(city_raw or "").strip()
+        name_norm = normalize_city(city)
+        if len(uf) != 2 or not city or not name_norm:
+            continue
+        key = (uf, name_norm)
+        if key in seen:
+            continue
+        seen.add(key)
+        exists = db.query(City).filter(City.uf == uf, City.name_norm == name_norm).first()
+        if not exists:
+            db.add(City(uf=uf, name=city, name_norm=name_norm, active=True, source=source))
+
     db.flush()
 
 
@@ -216,7 +252,6 @@ def _seed_occurrences(db):
         matches = []
         for key in _name_variants(row.get("employee_name") or ""):
             matches.extend(by_name.get(key, []))
-        # Deduplica objetos encontrados por variantes.
         unique = {e.id: e for e in matches}
         employee = next(iter(unique.values())) if len(unique) == 1 else None
         start_date = date.fromisoformat(row["start_date"]) if row.get("start_date") else None
@@ -259,7 +294,6 @@ def _ensure_sqlite_migrations():
                 if name not in employee_cols:
                     conn.execute(text(f"ALTER TABLE employees ADD COLUMN {name} {ddl}"))
 
-            # Mantém a regra legada de escopo ao migrar bancos anteriores.
             conn.execute(text(
                 "UPDATE employees SET in_scope = 0 "
                 "WHERE benefit_group = 'ADMIN_OUTROS' AND (in_scope IS NULL OR in_scope = 1)"
@@ -293,8 +327,6 @@ def seed():
             db.add(config)
             db.flush()
         elif config.first_half_end_day != QS_FIRST_HALF_END_DAY:
-            # Regra oficial confirmada para a V0.9.3. A alteração da configuração
-            # não reescreve períodos fechados; ensure_periods respeita esse histórico.
             config.first_half_end_day = QS_FIRST_HALF_END_DAY
             db.flush()
 
@@ -304,6 +336,7 @@ def seed():
         _seed_holiday_rules_2026(db)
         _seed_policies(db)
         _seed_occurrences(db)
+        _sync_operational_cities(db)
 
         today = date.today()
         ensure_periods(db, today.year, today.month, config.first_half_end_day)
@@ -311,6 +344,5 @@ def seed():
     finally:
         db.close()
 
-    # A V0.9.3 substitui apenas as rotas de ocorrência da V0.9.2 no startup,
-    # mantendo o restante do main legado intacto durante a migração incremental.
     install_occurrence_v2()
+    install_locality_v2()
