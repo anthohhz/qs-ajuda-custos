@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/roteiros">← Roteiros</a>
+<div class="page-head"><div><p class="eyebrow">OPERACIONAL · ROTEIRO #{{ route.id }}</p><h1>{{ employee.name if employee else 'Colaborador' }}</h1><p class="muted">{{ route.valid_from.strftime('%d/%m/%Y') }} → {{ route.valid_to.strftime('%d/%m/%Y') if route.valid_to else 'vigente' }} · {{ route.status }}</p></div>{% if employee %}<a class="btn secondary" href="/colaboradores/{{ employee.id }}">Abrir colaborador</a>{% endif %}</div>
+{% if request.query_params.get('created') %}<div class="notice">Roteiro criado. Agora adicione os PDVs de cada dia na ordem de visita.</div>{% endif %}
+{% if request.query_params.get('saved') %}<div class="notice">PDV adicionado ao roteiro.</div>{% endif %}
+{% if request.query_params.get('erro') %}<div class="notice error-notice">{% if request.query_params.get('erro')=='ordem' %}Já existe uma parada nessa posição para o dia escolhido.{% elif request.query_params.get('erro')=='duplicado' %}Esse PDV já está no roteiro desse dia.{% elif request.query_params.get('erro')=='vigencia' %}Informe uma data de encerramento válida.{% else %}Confira os dados informados.{% endif %}</div>{% endif %}
+
+{% if route.status=='ATIVO' %}
+<div class="card section">
+  <div class="page-section-title"><div><h2>Adicionar PDV</h2><p class="muted">Busque pelo nome, código, rede ou endereço. O QS grava o vínculo diretamente com o PDV.</p></div></div>
+  <form method="post" action="/roteiros/{{ route.id }}/paradas" id="stopForm">
+    <div class="form-grid"><label>Dia da semana<select name="weekday" required>{% for idx,label in weekdays %}<option value="{{ idx }}">{{ label }}</option>{% endfor %}</select></label><label>Ordem<input type="number" name="sequence" min="1" value="1" required></label></div>
+    <label>Buscar PDV<input id="pdvSearch" placeholder="Digite pelo menos 2 caracteres" autocomplete="off"></label>
+    <label>Resultado<select name="pdv_id" id="pdvResults" required disabled><option value="">Busque um PDV acima</option></select></label>
+    <label>Observação da parada<textarea name="notes" rows="2" placeholder="Opcional"></textarea></label>
+    <div class="form-actions"><button class="btn" type="submit">Adicionar ao roteiro</button></div>
+  </form>
+</div>
+{% endif %}
+
+<div class="page-section-title"><div><h2>Semana do roteiro</h2><p class="muted">A ordem abaixo será usada pelo futuro motor de distância e VT.</p></div></div>
+<div class="hub-grid">
+{% for idx,label in weekdays %}
+<div class="card hub-card"><span class="mini-label">{{ label|upper }}</span><strong>{{ by_day.get(idx,[])|length }}</strong><h2>PDVs</h2>
+{% for stop,pdv in by_day.get(idx,[]) %}<div style="padding:10px 0;border-top:1px solid #e2e8f0;"><strong>{{ stop.sequence }}. {{ pdv.nome_pdv if pdv else 'PDV não encontrado' }}</strong>{% if pdv %}<div class="subtle">Cód. {{ pdv.codigo_pdv }} · {{ pdv.rede or pdv.bandeira or '—' }}</div><div class="subtle">{{ pdv.endereco or 'Endereço não informado' }}</div>{% endif %}{% if route.status=='ATIVO' %}<form method="post" action="/roteiros/{{ route.id }}/paradas/{{ stop.id }}/remover" style="margin-top:6px;"><button class="link-button" type="submit">Remover</button></form>{% endif %}</div>{% else %}<p class="subtle">Sem PDVs neste dia.</p>{% endfor %}
+</div>
+{% endfor %}
+</div>
+
+{% if route.status=='ATIVO' %}<div class="card section"><strong>Encerrar vigência</strong><p class="muted">Encerrar não apaga o roteiro. Ele continua disponível no histórico e no calendário dos meses anteriores.</p><form method="post" action="/roteiros/{{ route.id }}/encerrar" class="filter-form"><label>Último dia deste roteiro<input type="date" name="valid_to" required></label><button class="btn secondary" type="submit">Encerrar roteiro</button></form></div>{% endif %}
+
+<script>
+const search=document.getElementById('pdvSearch'),results=document.getElementById('pdvResults');let timer;
+if(search){search.addEventListener('input',()=>{clearTimeout(timer);const q=search.value.trim();if(q.length<2){results.disabled=true;results.innerHTML='<option value="">Digite pelo menos 2 caracteres</option>';return;}timer=setTimeout(async()=>{results.disabled=true;results.innerHTML='<option value="">Buscando...</option>';try{const r=await fetch('/api/roteiros/pdvs?q='+encodeURIComponent(q));const rows=await r.json();results.innerHTML='<option value="">Selecione...</option>'+rows.map(x=>`<option value="${x.id}">${x.codigo} · ${x.nome}${x.rede?' · '+x.rede:''}</option>`).join('');results.disabled=false;}catch(e){results.innerHTML='<option value="">Erro ao buscar</option>';}},250);});}
+</script>
+{% endblock %}
