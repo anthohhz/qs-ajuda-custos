@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<a class="back" href="/roteiros">← Roteiros</a>
+<div class="page-head"><div><p class="eyebrow">OPERACIONAL · ROTEIROS</p><h1>Novo roteiro</h1><p class="muted">Defina o colaborador e a vigência. Depois você adicionará os PDVs de cada dia na ordem de visita.</p></div></div>
+{% if request.query_params.get('erro') %}<div class="notice error-notice">{% if request.query_params.get('erro')=='sobreposicao' %}Já existe um roteiro com vigência sobreposta para este colaborador. Encerre ou ajuste o período anterior primeiro.{% else %}Confira colaborador e vigência.{% endif %}</div>{% endif %}
+<form class="card form-wide" method="post" action="/roteiros/novo">
+<label>Colaborador<select name="employee_id" required><option value="">Selecione...</option>{% for e in employees %}<option value="{{ e.id }}" {% if selected_employee_id==e.id %}selected{% endif %}>{{ e.name }} · {{ e.work_city or '—' }}/{{ e.work_state or '—' }}</option>{% endfor %}</select></label>
+<div class="form-grid"><label>Início da vigência<input type="date" name="valid_from" required></label><label>Fim da vigência<input type="date" name="valid_to"><span class="field-help">Deixe vazio se o roteiro continuar vigente.</span></label></div>
+<label>Observação<textarea name="notes" rows="3" placeholder="Ex.: roteiro regular a partir de setembro"></textarea></label>
+<div class="form-actions"><a class="btn secondary" href="/roteiros">Cancelar</a><button class="btn" type="submit">Criar roteiro</button></div>
+</form>
+{% endblock %}
